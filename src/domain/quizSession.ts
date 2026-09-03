@@ -1,4 +1,8 @@
-export type QuestionIdTuple = readonly [string, string, string, string, string];
+export type QuestionAnswerKey = {
+  questionId: string;
+  optionIds: readonly string[];
+  correctOptionId: string;
+};
 
 export type AnswerRecord = {
   questionId: string;
@@ -9,7 +13,7 @@ export type AnswerRecord = {
 export type QuizSession = {
   sessionId: string;
   seed: number;
-  questionIds: QuestionIdTuple;
+  questions: readonly QuestionAnswerKey[];
   currentIndex: number;
   answers: readonly AnswerRecord[];
   appliedTransitionIds: readonly string[];
@@ -18,35 +22,56 @@ export type QuizSession = {
 export type QuizState =
   | { phase: "answering"; session: QuizSession }
   | { phase: "feedback"; session: QuizSession; answer: AnswerRecord }
+  | { phase: "selecting"; session: QuizSession }
   | { phase: "summary"; session: QuizSession; correctCount: number };
 
 export type QuizAction =
   | {
       type: "submitAnswer";
       transitionId: string;
+      questionId: string;
       optionId: string;
-      correct: boolean;
     }
-  | { type: "continue"; transitionId: string };
+  | { type: "continue"; transitionId: string }
+  | {
+      type: "appendAdaptiveQuestion";
+      transitionId: string;
+      question: QuestionAnswerKey;
+    };
 
-function asQuestionTuple(ids: readonly string[]): QuestionIdTuple {
-  if (ids.length !== 5 || new Set(ids).size !== 5) {
-    throw new Error("a quiz session requires five distinct question IDs");
+function validateQuestions(questions: readonly QuestionAnswerKey[]) {
+  if (questions.length < 3 || questions.length > 5) {
+    throw new Error("a quiz session requires three to five questions");
   }
-  return [ids[0], ids[1], ids[2], ids[3], ids[4]];
+
+  const questionIds = questions.map(({ questionId }) => questionId);
+  if (new Set(questionIds).size !== questionIds.length) {
+    throw new Error("quiz questions must be distinct");
+  }
+
+  for (const question of questions) {
+    if (
+      question.optionIds.length === 0 ||
+      new Set(question.optionIds).size !== question.optionIds.length ||
+      !question.optionIds.includes(question.correctOptionId)
+    ) {
+      throw new Error(`invalid answer key for ${question.questionId}`);
+    }
+  }
 }
 
 export function createQuizSession(input: {
   sessionId: string;
   seed: number;
-  questionIds: readonly string[];
+  questions: readonly QuestionAnswerKey[];
 }): QuizState {
+  validateQuestions(input.questions);
   return {
     phase: "answering",
     session: {
       sessionId: input.sessionId,
       seed: input.seed,
-      questionIds: asQuestionTuple(input.questionIds),
+      questions: [...input.questions],
       currentIndex: 0,
       answers: [],
       appliedTransitionIds: [],
@@ -55,14 +80,23 @@ export function createQuizSession(input: {
 }
 
 export function quizReducer(state: QuizState, action: QuizAction): QuizState {
-  if (state.session.appliedTransitionIds.includes(action.transitionId))
+  if (state.session.appliedTransitionIds.includes(action.transitionId)) {
     return state;
+  }
 
   if (state.phase === "answering" && action.type === "submitAnswer") {
+    const currentQuestion = state.session.questions[state.session.currentIndex];
+    if (
+      action.questionId !== currentQuestion?.questionId ||
+      !currentQuestion.optionIds.includes(action.optionId)
+    ) {
+      return state;
+    }
+
     const answer: AnswerRecord = {
-      questionId: state.session.questionIds[state.session.currentIndex],
+      questionId: currentQuestion.questionId,
       optionId: action.optionId,
-      correct: action.correct,
+      correct: action.optionId === currentQuestion.correctOptionId,
     };
     return {
       phase: "feedback",
@@ -86,16 +120,43 @@ export function quizReducer(state: QuizState, action: QuizAction): QuizState {
         action.transitionId,
       ],
     };
-    if (session.currentIndex === 4) {
+    if (session.answers.length === 5) {
       return {
         phase: "summary",
         session,
         correctCount: session.answers.filter((answer) => answer.correct).length,
       };
     }
+    if (session.currentIndex + 1 === session.questions.length) {
+      return { phase: "selecting", session };
+    }
     return {
       phase: "answering",
       session: { ...session, currentIndex: session.currentIndex + 1 },
+    };
+  }
+
+  if (state.phase === "selecting" && action.type === "appendAdaptiveQuestion") {
+    if (
+      state.session.questions.length >= 5 ||
+      state.session.questions.some(
+        ({ questionId }) => questionId === action.question.questionId,
+      )
+    ) {
+      return state;
+    }
+    validateQuestions([...state.session.questions, action.question]);
+    return {
+      phase: "answering",
+      session: {
+        ...state.session,
+        questions: [...state.session.questions, action.question],
+        currentIndex: state.session.currentIndex + 1,
+        appliedTransitionIds: [
+          ...state.session.appliedTransitionIds,
+          action.transitionId,
+        ],
+      },
     };
   }
 
@@ -110,13 +171,15 @@ function nextRandom(state: number): number {
   return value >>> 0;
 }
 
-export function selectFiveQuestionIds(
+export function selectQuestionIds(
   candidateIds: readonly string[],
+  count: 3 | 5,
   seed: number,
-): QuestionIdTuple {
+): readonly string[] {
   const uniqueIds = [...new Set(candidateIds)].sort();
-  if (uniqueIds.length < 5)
-    throw new Error("at least five distinct questions are required");
+  if (uniqueIds.length < count) {
+    throw new Error(`at least ${count} distinct questions are required`);
+  }
 
   let randomState = seed >>> 0 || 0x9e3779b9;
   for (let index = uniqueIds.length - 1; index > 0; index -= 1) {
@@ -128,5 +191,5 @@ export function selectFiveQuestionIds(
     ];
   }
 
-  return asQuestionTuple(uniqueIds.slice(0, 5));
+  return uniqueIds.slice(0, count);
 }
