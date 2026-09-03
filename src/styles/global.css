@@ -174,6 +174,23 @@ h2 {
 .winning-separator {
   width: 8px;
 }
+.melds-row,
+.meld {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+}
+.melds-row {
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+.meld {
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
 .dora-row {
   display: flex;
   align-items: center;

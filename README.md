@@ -18,9 +18,11 @@
 
 最初の到達点は、15〜20問を使った診断プロトタイプです。対象利用者テストに合格した後で、64問の公開βへ展開します。
 
-React、TypeScript、Viteで実装し、Cloudflare Workers Static Assetsへ配信します。現在はMilestone 0の基盤と、仮問題1問の縦切りまで実装済みです。
+React、TypeScript、Viteで実装し、Cloudflare Workers Static Assetsへ配信します。`main`にはMilestone 0と点数支払いの基盤、未マージのPR #20には問題検証と5問セッションのdomain基盤があります。
 
 詳細な仕様、状態遷移、問題データ、診断ロジック、品質基準は[プロダクト・技術設計書](docs/product-design.md)を参照してください。
+
+別の開発者やAIが作業を再開する場合は、[開発引き継ぎ書](docs/handoff.md)から確認してください。現在の実装範囲、未完了Issue、推奨順序、開発・監修・本番運用体制をまとめています。
 
 ## 開発環境
 
