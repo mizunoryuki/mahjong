@@ -6,6 +6,29 @@ import { Tile } from "../shared/Tile";
 
 type AnswerState = "answering" | "correct" | "wrong";
 
+const windLabels = {
+  east: "東",
+  south: "南",
+  west: "西",
+  north: "北",
+} as const;
+
+function contextLabels() {
+  const { context } = sampleQuestion;
+  return [
+    `${windLabels[context.roundWind]}場`,
+    `${windLabels[context.seatWind]}家`,
+    sampleQuestion.hand.melds.length === 0 ? "門前" : "副露",
+    context.winSource.method === "ron" ? "ロン" : "ツモ",
+    context.riichi === "doubleRiichi"
+      ? "ダブル立直"
+      : context.riichi === "riichi"
+        ? "立直"
+        : null,
+    context.ippatsu ? "一発" : null,
+  ].filter((label): label is string => label !== null);
+}
+
 export function QuizPage() {
   const [answerState, setAnswerState] = useState<AnswerState>("answering");
   const [selectedId, setSelectedId] = useState<string>();
@@ -40,25 +63,25 @@ export function QuizPage() {
       )}
 
       <ul className="context-list" aria-label="問題の条件">
-        {sampleQuestion.context.map((item) => (
+        {contextLabels().map((item) => (
           <li key={item}>{item}</li>
         ))}
       </ul>
 
       <section
         className="hand-card"
-        aria-label={sampleQuestion.handDescription}
+        aria-label={sampleQuestion.hand.accessibleDescription}
       >
         <div className="hand-row">
-          {sampleQuestion.hand.map((tile, index) => (
+          {sampleQuestion.hand.concealed.map((tile, index) => (
             <Tile key={`${tile}-${index}`} code={tile} />
           ))}
           <span className="winning-separator" aria-hidden="true" />
-          <Tile code={sampleQuestion.winningTile} winning />
+          <Tile code={sampleQuestion.hand.winningTile} winning />
         </div>
         <div className="dora-row">
           <span>ドラ表示牌</span>
-          <Tile code={sampleQuestion.doraIndicator} />
+          <Tile code={sampleQuestion.hand.doraIndicators[0]} />
         </div>
       </section>
 
@@ -107,7 +130,7 @@ export function QuizPage() {
           </p>
           {answerState === "correct" ? (
             <>
-              <p>{sampleQuestion.explanation}</p>
+              <p>{sampleQuestion.explanation.summary}</p>
               <button className="primary-button" type="button" disabled>
                 次の問題へ（準備中）
               </button>
