@@ -1,35 +1,62 @@
 import { useEffect, useRef, useState } from "react";
 
 import { sampleQuestion } from "../content/sampleQuestion";
+import type { Question } from "../content/schema";
 import { formatPayment } from "../domain/payment";
+import {
+  contextLabels,
+  describeHand,
+  meldLabels,
+} from "../domain/questionPresentation";
 import { Tile } from "../shared/Tile";
 
-type AnswerState = "answering" | "correct" | "wrong";
+type AnswerState = "answering" | "correct" | "wrongProbe" | "wrongDirect";
 
-const windLabels = {
-  east: "東",
-  south: "南",
-  west: "西",
-  north: "北",
-} as const;
-
-function contextLabels() {
-  const { context } = sampleQuestion;
-  return [
-    `${windLabels[context.roundWind]}場`,
-    `${windLabels[context.seatWind]}家`,
-    sampleQuestion.hand.melds.length === 0 ? "門前" : "副露",
-    context.winSource.method === "ron" ? "ロン" : "ツモ",
-    context.riichi === "doubleRiichi"
-      ? "ダブル立直"
-      : context.riichi === "riichi"
-        ? "立直"
-        : null,
-    context.ippatsu ? "一発" : null,
-  ].filter((label): label is string => label !== null);
+export function HandCard({ question }: { question: Question }) {
+  return (
+    <section className="hand-card" aria-label={describeHand(question)}>
+      <div className="hand-row">
+        {question.hand.concealed.map((tile, index) => (
+          <Tile key={`${tile}-${index}`} code={tile} />
+        ))}
+        <span className="winning-separator" aria-hidden="true" />
+        <Tile code={question.hand.winningTile} winning />
+      </div>
+      {question.hand.melds.length > 0 ? (
+        <div className="melds-row" aria-hidden="true">
+          {question.hand.melds.map((meld, meldIndex) => (
+            <div className="meld" key={`${meld.kind}-${meldIndex}`}>
+              <span>{meldLabels[meld.kind]}</span>
+              {meld.tiles.map((tile, tileIndex) => (
+                <Tile key={`${tile}-${tileIndex}`} code={tile} />
+              ))}
+            </div>
+          ))}
+        </div>
+      ) : null}
+      <div className="dora-row">
+        <span>ドラ表示牌</span>
+        {question.hand.doraIndicators.map((tile, index) => (
+          <Tile key={`${tile}-${index}`} code={tile} />
+        ))}
+      </div>
+      {question.hand.uraDoraIndicators.length > 0 ? (
+        <div className="dora-row">
+          <span>裏ドラ表示牌</span>
+          {question.hand.uraDoraIndicators.map((tile, index) => (
+            <Tile key={`${tile}-${index}`} code={tile} />
+          ))}
+        </div>
+      ) : null}
+    </section>
+  );
 }
 
-export function QuizPage() {
+export function QuizPage({
+  question = sampleQuestion,
+}: {
+  question?: Question;
+}) {
   const [answerState, setAnswerState] = useState<AnswerState>("answering");
   const [selectedId, setSelectedId] = useState<string>();
   const headingRef = useRef<HTMLHeadingElement>(null);
@@ -41,7 +68,13 @@ export function QuizPage() {
   function submitAnswer(id: string, correct: boolean) {
     if (answerState !== "answering") return;
     setSelectedId(id);
-    setAnswerState(correct ? "correct" : "wrong");
+    setAnswerState(
+      correct
+        ? "correct"
+        : question.diagnosis.eligible
+          ? "wrongProbe"
+          : "wrongDirect",
+    );
   }
 
   return (
@@ -58,37 +91,26 @@ export function QuizPage() {
         </>
       ) : (
         <h1 id="quiz-title" ref={headingRef} tabIndex={-1}>
-          {answerState === "correct" ? "正解です" : "計算の途中を確認します"}
+          {answerState === "correct"
+            ? "正解です"
+            : answerState === "wrongProbe"
+              ? "計算の途中を確認します"
+              : "正解と内訳を確認します"}
         </h1>
       )}
 
       <ul className="context-list" aria-label="問題の条件">
-        {contextLabels().map((item) => (
+        {contextLabels(question).map((item) => (
           <li key={item}>{item}</li>
         ))}
       </ul>
 
-      <section
-        className="hand-card"
-        aria-label={sampleQuestion.hand.accessibleDescription}
-      >
-        <div className="hand-row">
-          {sampleQuestion.hand.concealed.map((tile, index) => (
-            <Tile key={`${tile}-${index}`} code={tile} />
-          ))}
-          <span className="winning-separator" aria-hidden="true" />
-          <Tile code={sampleQuestion.hand.winningTile} winning />
-        </div>
-        <div className="dora-row">
-          <span>ドラ表示牌</span>
-          <Tile code={sampleQuestion.hand.doraIndicators[0]} />
-        </div>
-      </section>
+      <HandCard question={question} />
 
       {answerState === "answering" ? (
         <>
           <div className="answer-grid" aria-label="支払いを選択">
-            {sampleQuestion.options.map((option) => {
+            {question.options.map((option) => {
               const label = formatPayment(option.payment);
               return (
                 <button
@@ -121,16 +143,15 @@ export function QuizPage() {
             <strong>
               {
                 formatPayment(
-                  sampleQuestion.options.find(
-                    (option) => option.id === selectedId,
-                  )!.payment,
+                  question.options.find((option) => option.id === selectedId)!
+                    .payment,
                 ).primary
               }
             </strong>
           </p>
-          {answerState === "correct" ? (
+          {answerState === "correct" || answerState === "wrongDirect" ? (
             <>
-              <p>{sampleQuestion.explanation.summary}</p>
+              <p>{question.explanation.summary}</p>
               <button className="primary-button" type="button" disabled>
                 次の問題へ（準備中）
               </button>
