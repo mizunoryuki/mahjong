@@ -57,28 +57,77 @@ const meldSchema = z.discriminatedUnion("kind", [
   }),
 ]);
 
+const hanValueSchema = z.number().int().min(1).max(12);
+const fuValueSchema = z.union([
+  z.literal(20),
+  z.literal(25),
+  z.literal(30),
+  z.literal(40),
+  z.literal(50),
+  z.literal(60),
+  z.literal(70),
+  z.literal(80),
+  z.literal(90),
+  z.literal(100),
+  z.literal(110),
+]);
+
 const pointBasisSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("hanFu"),
-    han: z.number().int().min(1).max(12),
-    fu: z.union([
-      z.literal(20),
-      z.literal(25),
-      z.literal(30),
-      z.literal(40),
-      z.literal(50),
-      z.literal(60),
-      z.literal(70),
-      z.literal(80),
-      z.literal(90),
-      z.literal(100),
-      z.literal(110),
-    ]),
+    han: hanValueSchema,
+    fu: fuValueSchema,
   }),
   z.object({ kind: z.literal("yakuman"), units: z.literal(1) }),
 ]);
 
 const coarseDiagnosisSchema = z.enum(["han", "fu", "payout"]);
+const ineligibleReasonSchema = z.enum([
+  "limit-hand",
+  "ambiguous-decomposition",
+  "multiple-primary-targets",
+  "insufficient-distractors",
+  "no-followup-pair",
+]);
+
+const probeSchema = z
+  .object({
+    hanOptions: z.array(hanValueSchema).min(3).max(5),
+    fuOptions: z.array(fuValueSchema).min(3).max(5),
+  })
+  .superRefine((probe, context) => {
+    if (new Set(probe.hanOptions).size !== probe.hanOptions.length) {
+      context.addIssue({
+        code: "custom",
+        path: ["hanOptions"],
+        message: "han probe options must be unique",
+      });
+    }
+    if (new Set(probe.fuOptions).size !== probe.fuOptions.length) {
+      context.addIssue({
+        code: "custom",
+        path: ["fuOptions"],
+        message: "fu probe options must be unique",
+      });
+    }
+  });
+
+const diagnosisSchema = z.discriminatedUnion("eligible", [
+  z.object({
+    eligible: z.literal(true),
+    ineligibleReason: z.never().optional(),
+    primaryCoarseTarget: coarseDiagnosisSchema,
+    fineTargets: z.array(z.string()),
+    probe: probeSchema,
+  }),
+  z.object({
+    eligible: z.literal(false),
+    ineligibleReason: ineligibleReasonSchema,
+    primaryCoarseTarget: z.never().optional(),
+    fineTargets: z.array(z.string()),
+    probe: z.never().optional(),
+  }),
+]);
 
 export const questionSchema = z
   .object({
@@ -133,26 +182,7 @@ export const questionSchema = z
         }),
       )
       .length(4),
-    diagnosis: z.object({
-      eligible: z.boolean(),
-      ineligibleReason: z
-        .enum([
-          "limit-hand",
-          "ambiguous-decomposition",
-          "multiple-primary-targets",
-          "insufficient-distractors",
-          "no-followup-pair",
-        ])
-        .optional(),
-      primaryCoarseTarget: coarseDiagnosisSchema.optional(),
-      fineTargets: z.array(z.string()),
-      probe: z
-        .object({
-          hanOptions: z.array(z.number().int().min(1).max(12)).min(2),
-          fuOptions: z.array(z.number().int().min(20).max(110)).min(2),
-        })
-        .optional(),
-    }),
+    diagnosis: diagnosisSchema,
     reviewGroup: z.array(z.string().min(1)).min(1),
     explanation: z.object({
       summary: z.string().min(1),
@@ -192,6 +222,24 @@ export const questionSchema = z
         code: "custom",
         path: ["options"],
         message: "payment options must be unique",
+      });
+    }
+
+    const optionIds = question.options.map((option) => option.id);
+    if (new Set(optionIds).size !== optionIds.length) {
+      context.addIssue({
+        code: "custom",
+        path: ["options"],
+        message: "option IDs must be unique",
+      });
+    }
+
+    const paymentKinds = question.options.map((option) => option.payment.kind);
+    if (new Set(paymentKinds).size !== 1) {
+      context.addIssue({
+        code: "custom",
+        path: ["options"],
+        message: "all payment options must use the same payment kind",
       });
     }
 
@@ -245,31 +293,30 @@ export const questionSchema = z
       });
     }
 
-    if (question.diagnosis.eligible) {
+    if (
+      question.diagnosis.eligible &&
+      question.solution.basis.kind === "hanFu"
+    ) {
       if (
-        !question.diagnosis.primaryCoarseTarget ||
-        !question.diagnosis.probe
+        !question.diagnosis.probe.hanOptions.includes(
+          question.solution.basis.han,
+        )
       ) {
         context.addIssue({
           code: "custom",
-          path: ["diagnosis"],
-          message:
-            "eligible questions require one primary target and a complete probe",
+          path: ["diagnosis", "probe", "hanOptions"],
+          message: "han probe options must include the correct han value",
         });
       }
-      if (question.diagnosis.ineligibleReason) {
+      if (
+        !question.diagnosis.probe.fuOptions.includes(question.solution.basis.fu)
+      ) {
         context.addIssue({
           code: "custom",
-          path: ["diagnosis", "ineligibleReason"],
-          message: "eligible questions cannot have an ineligible reason",
+          path: ["diagnosis", "probe", "fuOptions"],
+          message: "fu probe options must include the correct fu value",
         });
       }
-    } else if (!question.diagnosis.ineligibleReason) {
-      context.addIssue({
-        code: "custom",
-        path: ["diagnosis", "ineligibleReason"],
-        message: "ineligible questions require a reason",
-      });
     }
   });
 
