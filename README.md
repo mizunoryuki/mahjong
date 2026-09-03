@@ -18,10 +18,25 @@
 
 最初の到達点は、15〜20問を使った診断プロトタイプです。対象利用者テストに合格した後で、64問の公開βへ展開します。
 
-現在は設計段階で、アプリケーションコードはまだありません。実装はReact、TypeScript、Vite、Cloudflare Workers Static Assetsを予定しています。
+React、TypeScript、Viteで実装し、Cloudflare Workers Static Assetsへ配信します。現在はMilestone 0の基盤と、仮問題1問の縦切りまで実装済みです。
 
 詳細な仕様、状態遷移、問題データ、診断ロジック、品質基準は[プロダクト・技術設計書](docs/product-design.md)を参照してください。
 
 ## 開発環境
 
-セットアップ手順とコマンドは、Milestone 0のプロジェクト基盤作成後に追記します。
+Node.js 24とnpmを使用します。
+
+```sh
+npm ci
+npm run dev
+```
+
+変更前の一括検証：
+
+```sh
+npm run check
+npm run test:e2e
+npm run deploy:dry-run
+```
+
+チケット、リポジトリ運用、CI/CD、テスト方針は`docs/`にまとめています。
