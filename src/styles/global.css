@@ -287,6 +287,77 @@ h2 {
   border: 0;
 }
 
+.probe-section {
+  margin: 16px 0;
+  display: grid;
+  gap: 16px;
+}
+.probe-group {
+  display: grid;
+  gap: 8px;
+}
+.probe-group-label {
+  font-weight: 600;
+  font-size: 0.9375rem;
+}
+.probe-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.probe-button {
+  min-height: 44px;
+  padding: 8px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+  color: inherit;
+}
+.probe-button:hover {
+  border-color: var(--primary);
+  background: #f2f8f4;
+}
+.probe-button--selected {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+.probe-button--selected:hover {
+  background: var(--primary);
+  color: white;
+}
+.probe-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 16px;
+}
+.diagnosis-card {
+  margin: 16px 0;
+  padding: 16px;
+  background: #f4fbf7;
+  border: 1px solid var(--primary);
+  border-radius: var(--radius);
+}
+.diagnosis-card h3 {
+  margin: 0 0 8px 0;
+  font-size: 1rem;
+  color: var(--primary);
+}
+.diagnosis-card h4 {
+  margin: 0 0 8px 0;
+  font-size: 1.125rem;
+}
+.diagnosis-card p {
+  margin: 0;
+  font-size: 0.9375rem;
+  color: #333;
+  line-height: 1.6;
+}
+
 @media (max-width: 359px) {
   .app-shell {
     width: min(calc(100% - 24px), 720px);

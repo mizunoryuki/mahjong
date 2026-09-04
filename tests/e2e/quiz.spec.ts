@@ -101,10 +101,60 @@ test("persists session progress across auxiliary page navigation", async ({
   await page.getByRole("link", { name: "ルール" }).click();
   await expect(page.getByRole("heading", { name: "採用ルール" })).toBeVisible();
 
-  // ホームに戻る
-  await page.getByRole("link", { name: "この手、何点？" }).click();
+  // クイズページに戻る
+  await page.getByRole("link", { name: "問題へ戻る" }).click();
 
-  // 1問目の回答後フィードバック状態が復元されている
+  // 1問目の回答後状態（正解です）が保持されている
   await expect(page.getByRole("heading", { name: "正解です" })).toBeVisible();
   await expect(page.getByRole("button", { name: "次の問題へ" })).toBeVisible();
+});
+
+test("navigates through diagnostic probe on wrong answer and displays diagnosis card", async ({
+  page,
+}) => {
+  await page.goto("/");
+
+  // 1問目: 誤答 (2,000点)
+  await page.getByRole("button", { name: /2,000点/ }).click();
+
+  // プローブ画面
+  await expect(
+    page.getByRole("heading", { name: "計算の途中を確認します" }),
+  ).toBeVisible();
+
+  // プローブ回答: 1飜、30符
+  await page.getByRole("button", { name: "1飜" }).click();
+  await page.getByRole("button", { name: "30符" }).click();
+  await page
+    .getByRole("button", { name: "回答して正解と内訳を確認する" })
+    .click();
+
+  // 正解と内訳画面
+  await expect(
+    page.getByRole("heading", { name: "正解と内訳を確認します" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "次の問題へ" }).click();
+
+  // 2問目: 正解
+  await page.getByRole("button", { name: /1,000点/ }).click();
+  await page.getByRole("button", { name: "次の問題へ" }).click();
+
+  // 3問目: 正解
+  await page.getByRole("button", { name: /3,900点/ }).click();
+  await page.getByRole("button", { name: "次の問題へ" }).click();
+
+  // 4問目: 正解
+  await page.getByRole("button", { name: /2,900点/ }).click();
+  await page.getByRole("button", { name: "次の問題へ" }).click();
+
+  // 5問目: 正解
+  await page.getByRole("button", { name: /1,300・2,600点/ }).click();
+  await page.getByRole("button", { name: "結果を見る" }).click();
+
+  // 結果画面と診断カード
+  await expect(page.getByRole("heading", { name: "5問完了！" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "診断結果" })).toBeVisible();
+  await expect(
+    page.getByText(/「符計算」は別の問題で正解できました/),
+  ).toBeVisible();
 });

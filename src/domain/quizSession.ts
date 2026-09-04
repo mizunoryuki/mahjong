@@ -1,7 +1,17 @@
+import {
+  summarizeDiagnosis,
+  type CoarseDiagnosis,
+  type DiagnosticObservation,
+  type QuestionRole,
+  type SessionSummary,
+} from "./adaptiveDiagnosis";
+
 export type QuestionAnswerKey = {
   questionId: string;
   optionIds: readonly string[];
   correctOptionId: string;
+  role?: QuestionRole;
+  followupFor?: CoarseDiagnosis;
 };
 
 export type AnswerRecord = {
@@ -16,14 +26,26 @@ export type QuizSession = {
   questions: readonly QuestionAnswerKey[];
   currentIndex: number;
   answers: readonly AnswerRecord[];
+  observations: readonly DiagnosticObservation[];
   appliedTransitionIds: readonly string[];
 };
 
 export type QuizState =
   | { phase: "answering"; session: QuizSession }
-  | { phase: "feedback"; session: QuizSession; answer: AnswerRecord }
+  | { phase: "probe"; session: QuizSession; answer: AnswerRecord }
+  | {
+      phase: "feedback";
+      session: QuizSession;
+      answer: AnswerRecord;
+      observation?: DiagnosticObservation;
+    }
   | { phase: "selecting"; session: QuizSession }
-  | { phase: "summary"; session: QuizSession; correctCount: number };
+  | {
+      phase: "summary";
+      session: QuizSession;
+      correctCount: number;
+      diagnosisSummary?: SessionSummary;
+    };
 
 export type QuizAction =
   | {
@@ -31,6 +53,13 @@ export type QuizAction =
       transitionId: string;
       questionId: string;
       optionId: string;
+      requiresProbe?: boolean;
+    }
+  | {
+      type: "submitProbe";
+      transitionId: string;
+      questionId: string;
+      observation: DiagnosticObservation;
     }
   | { type: "continue"; transitionId: string }
   | {
@@ -74,6 +103,7 @@ export function createQuizSession(input: {
       questions: [...input.questions],
       currentIndex: 0,
       answers: [],
+      observations: [],
       appliedTransitionIds: [],
     },
   };
@@ -93,21 +123,79 @@ export function quizReducer(state: QuizState, action: QuizAction): QuizState {
       return state;
     }
 
+    const isCorrect = action.optionId === currentQuestion.correctOptionId;
     const answer: AnswerRecord = {
       questionId: currentQuestion.questionId,
       optionId: action.optionId,
-      correct: action.optionId === currentQuestion.correctOptionId,
+      correct: isCorrect,
     };
+
+    const nextApplied = [
+      ...state.session.appliedTransitionIds,
+      action.transitionId,
+    ];
+
+    if (!isCorrect && action.requiresProbe) {
+      return {
+        phase: "probe",
+        answer,
+        session: {
+          ...state.session,
+          answers: [...state.session.answers, answer],
+          appliedTransitionIds: nextApplied,
+        },
+      };
+    }
+
+    const defaultObservation: DiagnosticObservation = {
+      slot: state.session.currentIndex + 1,
+      problemId: currentQuestion.questionId,
+      role:
+        currentQuestion.role ??
+        (state.session.currentIndex < 3 ? "calibration" : "general"),
+      followupFor: currentQuestion.followupFor,
+      finalAnswerCorrect: isCorrect,
+      diagnosticUseful: false,
+    };
+
     return {
       phase: "feedback",
       answer,
+      observation: defaultObservation,
       session: {
         ...state.session,
         answers: [...state.session.answers, answer],
-        appliedTransitionIds: [
-          ...state.session.appliedTransitionIds,
-          action.transitionId,
+        observations: [
+          ...(state.session.observations ?? []),
+          defaultObservation,
         ],
+        appliedTransitionIds: nextApplied,
+      },
+    };
+  }
+
+  if (state.phase === "probe" && action.type === "submitProbe") {
+    const currentQuestion = state.session.questions[state.session.currentIndex];
+    if (action.questionId !== currentQuestion?.questionId) {
+      return state;
+    }
+
+    const nextApplied = [
+      ...state.session.appliedTransitionIds,
+      action.transitionId,
+    ];
+
+    return {
+      phase: "feedback",
+      answer: state.answer,
+      observation: action.observation,
+      session: {
+        ...state.session,
+        observations: [
+          ...(state.session.observations ?? []),
+          action.observation,
+        ],
+        appliedTransitionIds: nextApplied,
       },
     };
   }
@@ -121,10 +209,19 @@ export function quizReducer(state: QuizState, action: QuizAction): QuizState {
       ],
     };
     if (session.answers.length === 5) {
+      let diagnosisSummary: SessionSummary | undefined;
+      if (session.observations && session.observations.length === 5) {
+        try {
+          diagnosisSummary = summarizeDiagnosis(session.observations);
+        } catch {
+          // ignore
+        }
+      }
       return {
         phase: "summary",
         session,
         correctCount: session.answers.filter((answer) => answer.correct).length,
+        diagnosisSummary,
       };
     }
     if (session.currentIndex + 1 === session.questions.length) {
