@@ -1,7 +1,14 @@
 import { z } from "zod";
 
 import { paymentKey } from "../domain/payment";
-import { calculatePayment } from "../domain/scoring";
+import {
+  calculatePayment,
+  deriveBonus,
+  resolveFu,
+  sumYakuHan,
+  validateYakuCombination,
+  type TileCode,
+} from "../domain/scoring";
 
 export const tileCodeSchema = z.string().regex(/^(?:[0-9][mps]|[1-7]z)$/);
 
@@ -58,7 +65,7 @@ const meldSchema = z.discriminatedUnion("kind", [
 ]);
 
 const hanValueSchema = z.number().int().min(1).max(12);
-const fuValueSchema = z.union([
+export const fuValueSchema = z.union([
   z.literal(20),
   z.literal(25),
   z.literal(30),
@@ -72,13 +79,167 @@ const fuValueSchema = z.union([
   z.literal(110),
 ]);
 
-const pointBasisSchema = z.discriminatedUnion("kind", [
+export const yakuIdSchema = z.enum([
+  "riichi",
+  "doubleRiichi",
+  "ippatsu",
+  "menzenTsumo",
+  "tanyao",
+  "pinfu",
+  "iipeikou",
+  "yakuhaiRoundWind",
+  "yakuhaiSeatWind",
+  "yakuhaiWhite",
+  "yakuhaiGreen",
+  "yakuhaiRed",
+  "haitei",
+  "houtei",
+  "rinshan",
+  "chankan",
+  "sanshokuDoujun",
+  "ikkitsuukan",
+  "chanta",
+  "chiitoitsu",
+  "toitoi",
+  "sanankou",
+  "sankantsu",
+  "sanshokuDoukou",
+  "shousangen",
+  "honroutou",
+  "honitsu",
+  "junchan",
+  "ryanpeikou",
+  "chinitsu",
+]);
+
+export const yakumanIdSchema = z.enum([
+  "suuankou",
+  "daisangen",
+  "shousuushii",
+  "daisuushii",
+  "tsuuiisou",
+  "chinroutou",
+  "ryuuiisou",
+  "chuurenPoutou",
+]);
+
+export const fuComponentSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("base"), value: z.literal(20) }),
+  z.object({ kind: z.literal("menzenRon"), value: z.literal(10) }),
+  z.object({ kind: z.literal("tsumo"), value: z.literal(2) }),
+  z.object({
+    kind: z.literal("pair"),
+    value: z.literal(2),
+    reason: z.enum(["seatWind", "roundWind", "white", "green", "red"]),
+  }),
+  z.object({
+    kind: z.literal("wait"),
+    value: z.literal(2),
+    wait: z.enum(["kanchan", "penchan", "tanki"]),
+  }),
+  z.object({
+    kind: z.literal("meld"),
+    value: z.union([
+      z.literal(2),
+      z.literal(4),
+      z.literal(8),
+      z.literal(16),
+      z.literal(32),
+    ]),
+    meld: z.enum(["triplet", "kan"]),
+    openness: z.enum(["open", "closed"]),
+    tileClass: z.enum(["simple", "terminalOrHonor"]),
+  }),
+]);
+
+export const fuBasisSchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("standard"),
+    components: z.array(fuComponentSchema),
+    rawFu: z.number().int().positive(),
+    roundedFu: fuValueSchema,
+  }),
+  z.object({ kind: z.literal("chiitoitsu"), fixedFu: z.literal(25) }),
+  z.object({ kind: z.literal("pinfuTsumo"), fixedFu: z.literal(20) }),
+  z.object({ kind: z.literal("openNoFu"), fixedFu: z.literal(30) }),
+]);
+
+export const scoringBasisSchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("hanFu"),
+    closed: z.boolean(),
+    yaku: z.array(yakuIdSchema).min(1),
+    bonus: z.object({
+      dora: z.number().int().nonnegative(),
+      uraDora: z.number().int().nonnegative(),
+      redDora: z.number().int().nonnegative(),
+    }),
+    fu: fuBasisSchema,
+  }),
+  z.object({
+    kind: z.literal("yakuman"),
+    yakumanId: yakumanIdSchema,
+    units: z.literal(1),
+  }),
+]);
+
+export const simplifiedPointBasisSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("hanFu"),
     han: hanValueSchema,
     fu: fuValueSchema,
   }),
   z.object({ kind: z.literal("yakuman"), units: z.literal(1) }),
+]);
+
+export const pointBasisSchema = z.union([
+  scoringBasisSchema,
+  simplifiedPointBasisSchema,
+]);
+
+export const winningGroupSchema = z.object({
+  kind: z.enum(["sequence", "triplet", "kan"]),
+  tiles: z.array(tileCodeSchema).min(3).max(4),
+  openness: z.enum(["open", "closed"]),
+  completedByRon: z.boolean().optional(),
+});
+
+export const winningDecompositionSchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("standard"),
+    pair: z.tuple([tileCodeSchema, tileCodeSchema]),
+    groups: z.tuple([
+      winningGroupSchema,
+      winningGroupSchema,
+      winningGroupSchema,
+      winningGroupSchema,
+    ]),
+    winningPlacement: z.union([
+      z.object({ kind: z.literal("pair"), wait: z.literal("tanki") }),
+      z.object({
+        kind: z.literal("group"),
+        groupIndex: z.union([
+          z.literal(0),
+          z.literal(1),
+          z.literal(2),
+          z.literal(3),
+        ]),
+        wait: z.enum(["ryanmen", "shanpon", "kanchan", "penchan"]),
+      }),
+    ]),
+  }),
+  z.object({
+    kind: z.literal("chiitoitsu"),
+    pairs: z.tuple([
+      z.tuple([tileCodeSchema, tileCodeSchema]),
+      z.tuple([tileCodeSchema, tileCodeSchema]),
+      z.tuple([tileCodeSchema, tileCodeSchema]),
+      z.tuple([tileCodeSchema, tileCodeSchema]),
+      z.tuple([tileCodeSchema, tileCodeSchema]),
+      z.tuple([tileCodeSchema, tileCodeSchema]),
+      z.tuple([tileCodeSchema, tileCodeSchema]),
+    ]),
+  }),
 ]);
 
 const coarseDiagnosisSchema = z.enum(["han", "fu", "payout"]);
@@ -162,6 +323,7 @@ export const questionSchema = z
       concealed: z.array(tileCodeSchema),
       melds: z.array(meldSchema).max(4),
       winningTile: tileCodeSchema,
+      decomposition: winningDecompositionSchema.optional(),
       doraIndicators: z.array(tileCodeSchema).min(1).max(4),
       uraDoraIndicators: z.array(tileCodeSchema).max(4),
       accessibleDescription: z.string().min(1),
@@ -201,7 +363,7 @@ export const questionSchema = z
       context.addIssue({
         code: "custom",
         path: ["hand", "concealed"],
-        message: `concealed must contain ${expectedConcealedCount} tiles`,
+        message: `純手牌は${expectedConcealedCount}枚である必要があります`,
       });
     }
 
@@ -210,7 +372,7 @@ export const questionSchema = z
       context.addIssue({
         code: "custom",
         path: ["options"],
-        message: "exactly one option must be correct",
+        message: "正解の選択肢はちょうど1つである必要があります",
       });
     }
 
@@ -221,7 +383,7 @@ export const questionSchema = z
       context.addIssue({
         code: "custom",
         path: ["options"],
-        message: "payment options must be unique",
+        message: "選択肢の支払い内容は重複してはなりません",
       });
     }
 
@@ -230,7 +392,7 @@ export const questionSchema = z
       context.addIssue({
         code: "custom",
         path: ["options"],
-        message: "option IDs must be unique",
+        message: "選択肢IDは一意である必要があります",
       });
     }
 
@@ -239,7 +401,7 @@ export const questionSchema = z
       context.addIssue({
         code: "custom",
         path: ["options"],
-        message: "all payment options must use the same payment kind",
+        message: "すべての選択肢は同一の支払い種別である必要があります",
       });
     }
 
@@ -251,7 +413,7 @@ export const questionSchema = z
       context.addIssue({
         code: "custom",
         path: ["options"],
-        message: "the correct option must match the solution payment",
+        message: "正解の選択肢は解答の支払い内容と一致する必要があります",
       });
     }
 
@@ -266,8 +428,7 @@ export const questionSchema = z
       context.addIssue({
         code: "custom",
         path: ["solution", "payment"],
-        message:
-          "solution payment does not match the point basis and win context",
+        message: "計算された支払いと解答の支払い内容が一致しません",
       });
     }
 
@@ -288,12 +449,127 @@ export const questionSchema = z
       context.addIssue({
         code: "custom",
         path: ["hand"],
-        message:
-          "a hand cannot contain more than four copies of a normalized tile",
+        message: "同一の牌（赤牌を含む）は4枚以下である必要があります",
       });
     }
 
-    if (
+    if (question.hand.decomposition) {
+      const decomp = question.hand.decomposition;
+      const decompTiles: string[] = [];
+      if (decomp.kind === "standard") {
+        decompTiles.push(decomp.pair[0], decomp.pair[1]);
+        for (const group of decomp.groups) {
+          decompTiles.push(...group.tiles);
+        }
+      } else if (decomp.kind === "chiitoitsu") {
+        for (const pair of decomp.pairs) {
+          decompTiles.push(pair[0], pair[1]);
+        }
+      }
+
+      const decompNormalized = new Map<string, number>();
+      for (const tile of decompTiles) {
+        const norm = tile.startsWith("0") ? `5${tile[1]}` : tile;
+        decompNormalized.set(norm, (decompNormalized.get(norm) ?? 0) + 1);
+      }
+
+      let matches = decompTiles.length === handTiles.length;
+      if (matches) {
+        for (const [norm, count] of normalizedCounts) {
+          if (decompNormalized.get(norm) !== count) {
+            matches = false;
+            break;
+          }
+        }
+      }
+
+      if (!matches) {
+        context.addIssue({
+          code: "custom",
+          path: ["hand", "decomposition"],
+          message: "手牌分解の牌構成が手牌と一致していません",
+        });
+      }
+    }
+
+    if ("yaku" in question.solution.basis) {
+      const basis = question.solution.basis;
+      const isClosed = question.hand.melds.every(
+        (meld) => meld.kind === "closedKan",
+      );
+      if (basis.closed !== isClosed) {
+        context.addIssue({
+          code: "custom",
+          path: ["solution", "basis", "closed"],
+          message: `門前フラグ (${basis.closed}) が手牌の副露状態 (${isClosed}) と一致しません`,
+        });
+      }
+
+      try {
+        validateYakuCombination(basis.yaku, basis.closed);
+      } catch (err) {
+        context.addIssue({
+          code: "custom",
+          path: ["solution", "basis", "yaku"],
+          message:
+            err instanceof Error ? err.message : "役の組み合わせが不正です",
+        });
+      }
+
+      const allHandTiles = [
+        ...question.hand.concealed,
+        question.hand.winningTile,
+        ...question.hand.melds.flatMap((meld) => meld.tiles),
+      ] as TileCode[];
+
+      const expectedBonus = deriveBonus({
+        handTiles: allHandTiles,
+        doraIndicators: question.hand.doraIndicators as TileCode[],
+        uraDoraIndicators: question.hand.uraDoraIndicators as TileCode[],
+        isRiichi: question.context.riichi !== "none",
+      });
+
+      if (
+        basis.bonus.dora !== expectedBonus.dora ||
+        basis.bonus.uraDora !== expectedBonus.uraDora ||
+        basis.bonus.redDora !== expectedBonus.redDora
+      ) {
+        context.addIssue({
+          code: "custom",
+          path: ["solution", "basis", "bonus"],
+          message: `ドラ枚数が一致しません: 期待値(ドラ=${expectedBonus.dora}, 裏ドラ=${expectedBonus.uraDora}, 赤ドラ=${expectedBonus.redDora})、実際値(ドラ=${basis.bonus.dora}, 裏ドラ=${basis.bonus.uraDora}, 赤ドラ=${basis.bonus.redDora})`,
+        });
+      }
+
+      if (question.diagnosis.eligible) {
+        const yakuHan = sumYakuHan(basis.yaku, basis.closed);
+        const totalHan =
+          yakuHan +
+          basis.bonus.dora +
+          basis.bonus.uraDora +
+          basis.bonus.redDora;
+        const fu = resolveFu(basis.fu);
+
+        if (!question.diagnosis.probe.hanOptions.includes(totalHan)) {
+          context.addIssue({
+            code: "custom",
+            path: ["diagnosis", "probe", "hanOptions"],
+            message: `飜プローブ選択肢に正解の飜数 (${totalHan}) が含まれている必要があります`,
+          });
+        }
+        if (
+          !(question.diagnosis.probe.fuOptions as readonly number[]).includes(
+            fu,
+          )
+        ) {
+          context.addIssue({
+            code: "custom",
+            path: ["diagnosis", "probe", "fuOptions"],
+            message: `符プローブ選択肢に正解の符数 (${fu}) が含まれている必要があります`,
+          });
+        }
+      }
+    } else if (
       question.diagnosis.eligible &&
       question.solution.basis.kind === "hanFu"
     ) {
@@ -305,7 +581,7 @@ export const questionSchema = z
         context.addIssue({
           code: "custom",
           path: ["diagnosis", "probe", "hanOptions"],
-          message: "han probe options must include the correct han value",
+          message: "飜プローブ選択肢に正解の飜数が含まれている必要があります",
         });
       }
       if (
@@ -314,7 +590,7 @@ export const questionSchema = z
         context.addIssue({
           code: "custom",
           path: ["diagnosis", "probe", "fuOptions"],
-          message: "fu probe options must include the correct fu value",
+          message: "符プローブ選択肢に正解の符数が含まれている必要があります",
         });
       }
     }
@@ -334,10 +610,14 @@ export const questionBankSchema = z
       context.addIssue({
         code: "custom",
         path: ["questions"],
-        message: "question IDs must be unique",
+        message: "問題IDは一意である必要があります",
       });
     }
   });
 
 export type Question = z.infer<typeof questionSchema>;
 export type QuestionBank = z.infer<typeof questionBankSchema>;
+export type WinningDecomposition = z.infer<typeof winningDecompositionSchema>;
+export type ScoringBasis = z.infer<typeof scoringBasisSchema>;
+export type FuBasis = z.infer<typeof fuBasisSchema>;
+export type FuComponent = z.infer<typeof fuComponentSchema>;
