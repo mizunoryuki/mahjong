@@ -18,7 +18,7 @@ describe("questionSchema", () => {
     };
 
     expect(() => questionSchema.parse(duplicate)).toThrow(
-      /payment options must be unique/,
+      /選択肢の支払い内容は重複してはなりません/,
     );
   });
 
@@ -133,7 +133,7 @@ describe("questionSchema", () => {
     };
 
     expect(() => questionSchema.parse(duplicateIds)).toThrow(
-      /option IDs must be unique/,
+      /選択肢IDは一意である必要があります/,
     );
   });
 
@@ -154,7 +154,7 @@ describe("questionSchema", () => {
       ),
     };
 
-    expect(() => questionSchema.parse(mixedKinds)).toThrow(/same payment kind/);
+    expect(() => questionSchema.parse(mixedKinds)).toThrow(/同一の支払い種別/);
   });
 
   it("rejects a payment that disagrees with the scoring basis", () => {
@@ -171,7 +171,112 @@ describe("questionSchema", () => {
     };
 
     expect(() => questionSchema.parse(wrongPayment)).toThrow(
-      /does not match the point basis/,
+      /計算された支払いと解答の支払い内容が一致しません/,
+    );
+  });
+
+  it("accepts a question with full ScoringBasis and decomposition", () => {
+    const fullQuestion = {
+      ...sampleQuestion,
+      hand: {
+        ...sampleQuestion.hand,
+        decomposition: {
+          kind: "standard" as const,
+          pair: ["5z", "5z"] as const,
+          groups: [
+            {
+              kind: "sequence" as const,
+              tiles: ["1m", "2m", "3m"],
+              openness: "closed" as const,
+            },
+            {
+              kind: "sequence" as const,
+              tiles: ["4m", "5m", "6m"],
+              openness: "closed" as const,
+            },
+            {
+              kind: "sequence" as const,
+              tiles: ["7p", "8p", "9p"],
+              openness: "closed" as const,
+            },
+            {
+              kind: "sequence" as const,
+              tiles: ["2s", "3s", "4s"],
+              openness: "closed" as const,
+            },
+          ] as const,
+          winningPlacement: { kind: "pair" as const, wait: "tanki" as const },
+        },
+      },
+      solution: {
+        basis: {
+          kind: "hanFu" as const,
+          closed: true,
+          yaku: ["riichi" as const],
+          bonus: { dora: 0, uraDora: 0, redDora: 0 },
+          fu: {
+            kind: "standard" as const,
+            components: [
+              { kind: "base" as const, value: 20 as const },
+              { kind: "menzenRon" as const, value: 10 as const },
+              {
+                kind: "wait" as const,
+                value: 2 as const,
+                wait: "tanki" as const,
+              },
+            ],
+            rawFu: 32,
+            roundedFu: 40 as const,
+          },
+        },
+        payment: {
+          kind: "ron" as const,
+          winner: "nonDealer" as const,
+          points: 1300,
+        },
+      },
+    };
+
+    expect(questionSchema.parse(fullQuestion).id).toBe("sample-001");
+  });
+
+  it("rejects when decomposition does not match hand tiles", () => {
+    const mismatch = {
+      ...sampleQuestion,
+      hand: {
+        ...sampleQuestion.hand,
+        decomposition: {
+          kind: "standard" as const,
+          pair: ["1z", "1z"] as const, // 手牌には5z対子があるため不一致
+          groups: [
+            {
+              kind: "sequence" as const,
+              tiles: ["1m", "2m", "3m"],
+              openness: "closed" as const,
+            },
+            {
+              kind: "sequence" as const,
+              tiles: ["4m", "5m", "6m"],
+              openness: "closed" as const,
+            },
+            {
+              kind: "sequence" as const,
+              tiles: ["7p", "8p", "9p"],
+              openness: "closed" as const,
+            },
+            {
+              kind: "sequence" as const,
+              tiles: ["2s", "3s", "4s"],
+              openness: "closed" as const,
+            },
+          ] as const,
+          winningPlacement: { kind: "pair" as const, wait: "tanki" as const },
+        },
+      },
+    };
+
+    expect(() => questionSchema.parse(mismatch)).toThrow(
+      /手牌分解の牌構成が手牌と一致していません/,
     );
   });
 });
@@ -186,6 +291,6 @@ describe("questionBankSchema", () => {
         selectionAlgorithmVersion: 1,
         questions: [sampleQuestion, sampleQuestion],
       }),
-    ).toThrow(/question IDs must be unique/);
+    ).toThrow(/問題IDは一意である必要があります/);
   });
 });
