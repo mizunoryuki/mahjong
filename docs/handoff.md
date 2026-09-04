@@ -1,6 +1,6 @@
 # 開発引き継ぎ書
 
-最終更新: 2026-09-03
+最終更新: 2026-09-04
 
 この文書は、会話履歴を持たない開発者やAIが、現在地を誤認せずに作業を再開するための入口である。詳細仕様は[プロダクト・技術設計書](product-design.md)、実装順は[本番実装バックログ](production-backlog.md)を参照する。
 
@@ -18,11 +18,12 @@
 - Repository: <https://github.com/mizunoryuki/mahjong>
 - Production: <https://kono-te-nanten.kt0442193.workers.dev/>
 - Production branch: `main`
-- 作業ブランチ: `feature/production-foundation`
-- 未マージPR: [#20 本番向け問題検証と5問セッションの基盤を追加](https://github.com/mizunoryuki/mahjong/pull/20)
-- PR #20のCI: `quality`、`e2e`ともに成功
-
-本番URLは`main`の内容を配信している。PR #20の変更はまだ本番へ出ていない。次の担当者は、まずPR #20の状態と差分を確認し、承認後にsquash mergeする。監修前の仮問題を`published`へ変更してはならない。
+- 直近マージ済みPR:
+  - [#24 feat(domain): 誤答プローブ・診断決定表・適応出題の実装 (PROD-009, PROD-011)](https://github.com/mizunoryuki/mahjong/pull/24)
+  - [#23 feat(ui): 5問セッションUIと端末内保存・復元の実装 (PROD-005, PROD-006, PROD-008)](https://github.com/mizunoryuki/mahjong/pull/23)
+  - [#21 feat(domain): 点数計算契約・問題スキーマ・問題検証CLIの完成 (PROD-002, PROD-003, PROD-004)](https://github.com/mizunoryuki/mahjong/pull/21)
+  - [#20 本番向け問題検証と5問セッションの基盤を追加](https://github.com/mizunoryuki/mahjong/pull/20)
+- 本番URL稼働状況: `main` の全コミットがCloudflare Workers Static Assetsへ正常デプロイ完了（`/`, `/rules`, `/privacy`, `/settings`, `/about` のHTTP 200疎通確認済み）。
 
 作業開始時の確認コマンド:
 
@@ -35,88 +36,69 @@ npm run check
 npm run test:e2e -- --project=chromium
 ```
 
-## 3. 実装済み
+## 3. 実装済み（本番で動作するもの）
 
-### `main`にあるもの
-
-- React 19、TypeScript、Vite、Cloudflare Workers Static Assetsの基盤
-- `/`、`/rules`、`/privacy`、`/settings`、`/about`のルーティング
-- 仮問題1問の4択、正誤フィードバック、フォーカス移動
-- 飜・符から基本点を求め、親子・ロンツモの支払いへ変換する純粋関数
-- format、lint、typecheck、Vitest、buildをまとめた`npm run check`
-- Playwright Chromium E2Eとaxeによる重大アクセシビリティ違反検査
-- PR／`main`用CIと、`main`からCloudflareへ配信するCD
-- Dependabot設定、PRテンプレート、運用・テスト・CI/CD文書
-
-### PR #20にあるもの
-
-- `Question`／`QuestionBank`のZodスキーマ
-- 牌枚数、正解数、回答重複、Payment種別、支払い計算、診断適格性の整合性検査
-- probeの件数・重複・有効値・正解包含の検査
-- 3問の校正問題から開始し、観測後に4〜5問目を追加できるセッション状態機械
-- seed付きの決定的な問題選定
-- 二重transition、古い問題への回答、存在しない選択肢の拒否
-- 特殊和了、副露、全ドラ・裏ドラを表示できる問題表示
-- 構造化データから生成するスクリーンリーダー向け牌姿説明
-- 診断対象外の問題では、誤答プローブを出さず直接解説へ進む分岐
-- ローカル検証49テスト成功、Chromium E2E 3件成功
+- **フロントエンド・共通基盤**:
+  - React 19、TypeScript、Vite、Cloudflare Workers Static Assets
+  - `/`、`/rules`、`/privacy`、`/settings`、`/about` のルーティング
+  - 320px無はみ出し、axe重大違反ゼロ、キーボード操作可能な手牌表示（`tabindex="0"`）、スクリーンリーダー向け牌姿解説テキスト
+- **点数計算契約（PROD-003）**:
+  - 通常役30種・役満8種のカタログ、食い下がり判定、役置換・複合判定
+  - 符計算（底符・ツモ/ロン・待ち・刻子/槓子・七対子固定25符・平和20/30符）
+  - ドラ・裏ドラ・赤ドラ導出、満貫〜役満支払い計算（公式点数表準拠142テスト完備）
+- **問題スキーマ・検証CLI（PROD-002, PROD-004）**:
+  - `Question` / `QuestionBank` のZodスキーマ、手牌分解（標準形・七対子）、日本語エラーメッセージ
+  - `npm run validate:questions`: 牌枚数・計算・選択肢・類題・監修証跡の厳格検査CLI（CI必須ジョブ）
+- **5問セッション・端末内保存（PROD-005, PROD-006, PROD-008）**:
+  - 決定的なセッション状態機械（answering / probe / feedback / selecting / summary）
+  - `sessionStorage` 24時間保持、バージョン不一致破棄、破損耐性モジュール
+  - 1問目即時表示、4択回答、正誤判定、役・符内訳表示、プログレスバー、5問結果画面、再挑戦機能
+- **誤答プローブ・適応出題・診断決定表（PROD-009, PROD-011）**:
+  - 誤答かつ診断適格な問題における飜・符プローブUI（「分からない」「スキップ」対応）
+  - 1〜3問目の校正結果に基づく4問目・5問目の適応類題選定（`chooseFollowup` / `chooseFifthQuestion`）
+  - 診断決定表（`clear | candidate | repaired | confirmed | unknown`）による客観的・前向きな日本語診断結果カード
+  - 決定表全行テストおよび1,000 seed網羅シミュレーションによる不変条件検査（不正confirmed・例外・非決定性ゼロ件）
+- **品質保証・自動テスト**:
+  - Vitest 単体・結合テスト（204 tests 全件パス）
+  - Playwright E2E（Chromium / Mobile Chrome 全件パス）
 
 ## 4. まだ実装されていないもの
 
 重要: 現在の点数関数は「正しい飜数・符数が既に与えられた後」の支払いを計算する。牌姿から面子・待ち・役・飜・符を判定するエンジンではない。
 
-| Issue                                                            | 状態                     | 残作業                                                                                               |
-| ---------------------------------------------------------------- | ------------------------ | ---------------------------------------------------------------------------------------------------- |
-| [#6 PROD-001](https://github.com/mizunoryuki/mahjong/issues/6)   | 未着手・外部blocker      | Rule owner、作者と別人のRule reviewer、承認方法、緊急連絡先を決める                                  |
-| [#7 PROD-002](https://github.com/mizunoryuki/mahjong/issues/7)   | PR #20で部分実装         | 手牌分解、役一覧、符内訳、実問題bankとloaderを契約へ追加し、完了条件を再確認する                     |
-| [#8 PROD-003](https://github.com/mizunoryuki/mahjong/issues/8)   | 基本点・支払いのみ実装   | 牌姿から役・飜・符・ドラを導出する契約、満貫以上・役満の採用範囲、監修済みgolden fixtureを完成させる |
-| [#9 PROD-004](https://github.com/mizunoryuki/mahjong/issues/9)   | 未着手                   | `npm run validate:questions`を実装し、問題データと監修証跡をCIで検査する                             |
-| [#10 PROD-005](https://github.com/mizunoryuki/mahjong/issues/10) | PR #20でdomainを部分実装 | 状態機械を実際の問題bank・UIへ接続し、5問完遂を確認する                                              |
-| [#11 PROD-006](https://github.com/mizunoryuki/mahjong/issues/11) | 未着手                   | `sessionStorage`保存、24時間復元、schema version不一致・破損・保存失敗時の縮退を実装する             |
-| [#12 PROD-007](https://github.com/mizunoryuki/mahjong/issues/12) | 表示契約のみ部分実装     | 本番用牌SVG、赤牌・副露・槓の見た目、ライセンス証跡、200%拡大・実機・読み上げ確認を行う              |
-| [#13 PROD-008](https://github.com/mizunoryuki/mahjong/issues/13) | 1問画面のみ部分実装      | 次問、進捗、内訳、5問結果、再挑戦、補助ページからの復帰を完成させる                                  |
-| [#14 PROD-009](https://github.com/mizunoryuki/mahjong/issues/14) | 未着手                   | 飜・符probeと`clear/candidate/repaired/confirmed/unknown`の決定表、適応出題を実装する                |
-| [#15 PROD-010](https://github.com/mizunoryuki/mahjong/issues/15) | 未着手・監修待ち         | α用15〜20問を作成し、作者以外が全問を独立再計算して承認する                                          |
-| [#16 PROD-011](https://github.com/mizunoryuki/mahjong/issues/16) | 未着手                   | 固定シナリオと1,000 seedの決定性・診断不変条件検査を追加する                                         |
-| [#17 PROD-012](https://github.com/mizunoryuki/mahjong/issues/17) | 未着手                   | 対象者5〜8人でユーザーテストを実施し、設計書のゲートを評価する                                       |
-| [#18 PROD-013](https://github.com/mizunoryuki/mahjong/issues/18) | α合格まで開始禁止        | 二重監修済み問題を64問へ拡張する                                                                     |
-| [#19 PROD-014](https://github.com/mizunoryuki/mahjong/issues/19) | 未着手                   | Privacy、問題報告、匿名計測、エラー監視、問題retire、監視、rollback、runbookを運用可能にする         |
+| Issue                                                            | 状態                                       | 残作業                                                                                       |
+| ---------------------------------------------------------------- | ------------------------------------------ | -------------------------------------------------------------------------------------------- |
+| [#6 PROD-001](https://github.com/mizunoryuki/mahjong/issues/6)   | 未着手・外部blocker                        | Rule owner、作者と別人のRule reviewer、承認方法、緊急連絡先を決める                          |
+| [#7 PROD-002](https://github.com/mizunoryuki/mahjong/issues/7)   | 【完了・マージ済み (PR #21)】              | 手牌分解、役一覧、符内訳、Question契約・バンクローダー・日本語バリデーションを完了           |
+| [#8 PROD-003](https://github.com/mizunoryuki/mahjong/issues/8)   | 【完了・マージ済み (PR #21)】              | 牌姿からの役・飜・符・ドラ導出契約、満貫以上・役満計算、公式表フィクスチャ全142テスト完了    |
+| [#9 PROD-004](https://github.com/mizunoryuki/mahjong/issues/9)   | 【完了・マージ済み (PR #21)】              | `npm run validate:questions` CLIを実装し、CIに統合完了                                       |
+| [#10 PROD-005](https://github.com/mizunoryuki/mahjong/issues/10) | 【完了・マージ済み (PR #23)】              | 5問セッション状態機械・決定論的選定・answering/feedback/summary遷移を接続完了                |
+| [#11 PROD-006](https://github.com/mizunoryuki/mahjong/issues/11) | 【完了・マージ済み (PR #23)】              | `sessionStorage` 24時間保持・復元・破損耐性モジュールを実装しE2E検証完了                     |
+| [#12 PROD-007](https://github.com/mizunoryuki/mahjong/issues/12) | 一部実装済み（表示契約・アクセシビリティ） | 固定commitの牌SVG差し替え、ライセンス通知、実機でのスクリーンリーダー最終確認                |
+| [#13 PROD-008](https://github.com/mizunoryuki/mahjong/issues/13) | 【完了・マージ済み (PR #23)】              | 1問目即時表示、4択、正誤、内訳、次問、5問結果、補助ページ復帰E2Eを完了                       |
+| [#14 PROD-009](https://github.com/mizunoryuki/mahjong/issues/14) | 【完了・マージ済み (PR #24)】              | 飜・符プローブUI、5結果診断決定表、4〜5問目の適応選定を実装・マージ完了                      |
+| [#15 PROD-010](https://github.com/mizunoryuki/mahjong/issues/15) | 未着手・二重監修待ち                       | α用15〜20問を作成し、作者以外が全問を独立再計算して承認する（PROD-001確定後）                |
+| [#16 PROD-011](https://github.com/mizunoryuki/mahjong/issues/16) | 【完了・マージ済み (PR #24)】              | 決定表全行テスト、1,000 seedの決定性・不正confirmedゼロ件の不変条件検査を完了                |
+| [#17 PROD-012](https://github.com/mizunoryuki/mahjong/issues/17) | 未着手                                     | 対象者5〜8人でユーザーテストを実施し、設計書のゲートを評価する                               |
+| [#18 PROD-013](https://github.com/mizunoryuki/mahjong/issues/18) | α合格まで開始禁止                          | 二重監修済み問題を64問へ拡張する                                                             |
+| [#19 PROD-014](https://github.com/mizunoryuki/mahjong/issues/19) | 未着手                                     | Privacy、問題報告、匿名計測、エラー監視、問題retire、監視、rollback、runbookを運用可能にする |
 
 ## 5. 推奨する次の実装順
 
-### Step 0: PR #20を取り込む
+### 完了したステップ
 
-1. PRの差分とCIを確認する。
-2. 監修前のfixtureが`draft`のままであることを確認する。
-3. squash mergeする。
-4. 本番デプロイ後に`/`、`/rules`、`/privacy`、`/settings`、`/about`をsmoke testする。
+- **Step 0〜Step 2**: PR #20、PR #21（ドメイン契約・スキーマ・問題検証CLI）、PR #23（5問UI・端末内保存）、PR #24（誤答プローブ・診断決定表・1,000 seed不変条件検査）をすべて本番マージ・デプロイ完了。
 
-### Step 1: 正確性の土台を閉じる
+### 現在のフォーカスと次のステップ
 
-1. #6でRule ownerと独立reviewerを決める。
-2. #7の残りとして、役・符内訳・手牌分解を表現できるQuestion契約と問題bank loaderを作る。
-3. #8で採用ルールを明文化し、牌姿からの役・飜・符計算を純粋関数として実装する。
-4. #9で問題検証CLIを作り、CIの必須jobへ追加する。
-
-### Step 2: 操作可能な5問α版を作る
-
-1. #10の状態機械をReact画面へ接続する。
-2. #11の保存・復元を追加する。
-3. #12の牌SVGとアクセシビリティを完成させる。
-4. #13の5問結果までのE2Eを完成させる。
-
-この時点で「5問を解くアプリ」になるが、診断プロダクトとしては未完成である。
-
-### Step 3: 診断α版を作り検証する
-
-1. #14の誤答probe、診断決定表、4〜5問目の適応選定を実装する。
-2. #15の監修済み15〜20問を投入する。
-3. #16の固定scenarioと1,000 seed検査をCIへ追加する。
-4. #17の対象利用者テストを実施する。
-
-### Step 4: 公開βへ進む
-
-利用者テストの全ゲートに合格した場合だけ、#18の64問制作と#19の公開運用を進める。未達なら、問題文・診断ロジック・画面導線を先に修正する。
+1. **PROD-007 牌SVGとアクセシブル表示の仕上げ**:
+   - 固定commitのオープンライセンス牌SVGアセット（例: FluffyStuff riichi-mahjong-tiles 等）の選定と取り込み。
+   - ライセンス証跡・クレジット表示（`/about` または `/rules`）。
+2. **PROD-001 & PROD-010（Phase 3: 監修体制とα用問題の二重監修）**:
+   - Rule owner / reviewer の確定（人間による承認体制）。
+   - α用15〜20問の二重監修とGate A〜E通過の検証（`npm run validate:questions`）。
+3. **PROD-012 対象利用者テスト**:
+   - 5〜8人によるプロトタイプ評価とゲート判定。
 
 ## 6. 開発体制
 
