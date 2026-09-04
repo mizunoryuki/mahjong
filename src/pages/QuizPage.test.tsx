@@ -81,4 +81,58 @@ describe("QuizPage", () => {
       /ドラ表示牌 南、西。裏ドラ表示牌 北、白/,
     );
   });
+
+  it("advances to the next question when clicking next button", () => {
+    render(<QuizPage />, { wrapper: MemoryRouter });
+
+    expect(screen.getByText(/現在 1問目 \/ 全5問/)).toBeInTheDocument();
+
+    // 1問目回答 (正解: 1,300点)
+    fireEvent.click(screen.getByRole("button", { name: /1,300点/ }));
+    expect(
+      screen.getByRole("heading", { name: "正解です" }),
+    ).toBeInTheDocument();
+
+    // 次の問題へ
+    fireEvent.click(screen.getByRole("button", { name: "次の問題へ" }));
+
+    // 2問目が表示される
+    expect(screen.getByText(/現在 2問目 \/ 全5問/)).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "この手、何点？" }),
+    ).toBeInTheDocument();
+  });
+
+  it("completes all 5 questions and displays summary result screen", () => {
+    render(<QuizPage />, { wrapper: MemoryRouter });
+
+    // 1問目: 1,300点 (正解)
+    fireEvent.click(screen.getByRole("button", { name: /1,300点/ }));
+    fireEvent.click(screen.getByRole("button", { name: "次の問題へ" }));
+
+    // 2問目: 1,000点 (正解)
+    fireEvent.click(screen.getByRole("button", { name: /1,000点/ }));
+    fireEvent.click(screen.getByRole("button", { name: "次の問題へ" }));
+
+    // 3問目: 3,900点 (正解)
+    fireEvent.click(screen.getByRole("button", { name: /3,900点/ }));
+    fireEvent.click(screen.getByRole("button", { name: "次の問題へ" }));
+
+    // 4問目: 2,900点 (正解)
+    fireEvent.click(screen.getByRole("button", { name: /2,900点/ }));
+    fireEvent.click(screen.getByRole("button", { name: "次の問題へ" }));
+
+    // 5問目: 1,300・2,600点 (正解)
+    fireEvent.click(screen.getByRole("button", { name: /1,300・2,600点/ }));
+    fireEvent.click(screen.getByRole("button", { name: "結果を見る" }));
+
+    // 結果画面が表示される
+    expect(
+      screen.getByRole("heading", { name: "5問完了！" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/5問中 5問 正解/)).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "もう一度挑戦する" }),
+    ).toBeInTheDocument();
+  });
 });

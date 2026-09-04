@@ -1,4 +1,4 @@
-import { sampleQuestion } from "./sampleQuestion";
+import { sampleQuestions } from "./sampleQuestions";
 import { questionBankSchema, type Question, type QuestionBank } from "./schema";
 
 /**
@@ -18,9 +18,9 @@ export function createQuestionBank(input: {
 }
 
 /**
- * 開発・MVP用のデフォルト問題バンク
+ * 開発・MVP用のデフォルト問題バンク（5問）
  */
 export const defaultQuestionBank: QuestionBank = createQuestionBank({
   bankVersion: "alpha-0.1.0",
-  questions: [sampleQuestion],
+  questions: sampleQuestions,
 });
