@@ -142,3 +142,83 @@ describe("question selection", () => {
     expect(new Set(selected).size).toBe(5);
   });
 });
+
+describe("quiz session with probe and diagnosis", () => {
+  it("transitions to probe phase on incorrect answer when requiresProbe is true", () => {
+    const initial = createQuizSession({
+      sessionId: "s1",
+      seed: 1,
+      questions: initialQuestions,
+    });
+    const probeState = quizReducer(initial, {
+      type: "submitAnswer",
+      transitionId: "t1",
+      questionId: "q1",
+      optionId: "b",
+      requiresProbe: true,
+    });
+
+    expect(probeState.phase).toBe("probe");
+    if (probeState.phase === "probe") {
+      expect(probeState.answer).toEqual({
+        questionId: "q1",
+        optionId: "b",
+        correct: false,
+      });
+    }
+
+    const feedbackState = quizReducer(probeState, {
+      type: "submitProbe",
+      transitionId: "t2",
+      questionId: "q1",
+      observation: {
+        slot: 1,
+        problemId: "q1",
+        role: "calibration",
+        finalAnswerCorrect: false,
+        diagnosticUseful: true,
+        coarseDiagnosis: "fu",
+      },
+    });
+
+    expect(feedbackState.phase).toBe("feedback");
+    expect(feedbackState.session.observations).toHaveLength(1);
+    expect(feedbackState.session.observations[0]?.coarseDiagnosis).toBe("fu");
+  });
+
+  it("calculates diagnosisSummary in summary phase when observations exist", () => {
+    let state = createQuizSession({
+      sessionId: "s1",
+      seed: 1,
+      questions: initialQuestions,
+    });
+
+    // 5問全問正解
+    for (let i = 0; i < 5; i++) {
+      const cur = state.session.questions[state.session.currentIndex];
+      state = quizReducer(state, {
+        type: "submitAnswer",
+        transitionId: `ans-${i}`,
+        questionId: cur.questionId,
+        optionId: "a",
+      });
+      state = quizReducer(state, {
+        type: "continue",
+        transitionId: `cont-${i}`,
+      });
+      if (state.phase === "selecting") {
+        state = quizReducer(state, {
+          type: "appendAdaptiveQuestion",
+          transitionId: `sel-${i}`,
+          question: question(`q${i + 2}`),
+        });
+      }
+    }
+
+    expect(state.phase).toBe("summary");
+    if (state.phase === "summary") {
+      expect(state.correctCount).toBe(5);
+      expect(state.diagnosisSummary).toEqual({ kind: "clear" });
+    }
+  });
+});

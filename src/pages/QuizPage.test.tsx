@@ -136,3 +136,70 @@ describe("QuizPage", () => {
     ).toBeInTheDocument();
   });
 });
+
+it("handles probe answers and displays diagnosis summary on completion", () => {
+  render(<QuizPage />, { wrapper: MemoryRouter });
+
+  // 1問目: 誤答 (2,000点)
+  fireEvent.click(screen.getByRole("button", { name: /2,000点/ }));
+  expect(
+    screen.getByRole("heading", { name: "計算の途中を確認します" }),
+  ).toBeInTheDocument();
+
+  // プローブ回答: 1飜、30符 (飜は正解、符は誤答 -> fu のつまずき)
+  fireEvent.click(screen.getByRole("button", { name: "1飜" }));
+  fireEvent.click(screen.getByRole("button", { name: "30符" }));
+  fireEvent.click(
+    screen.getByRole("button", { name: "回答して正解と内訳を確認する" }),
+  );
+
+  // 内訳解説画面へ
+  expect(
+    screen.getByRole("heading", { name: "正解と内訳を確認します" }),
+  ).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "次の問題へ" }));
+
+  // 2問目: 正解 (1,000点)
+  fireEvent.click(screen.getByRole("button", { name: /1,000点/ }));
+  fireEvent.click(screen.getByRole("button", { name: "次の問題へ" }));
+
+  // 3問目: 正解 (3,900点)
+  fireEvent.click(screen.getByRole("button", { name: /3,900点/ }));
+  fireEvent.click(screen.getByRole("button", { name: "次の問題へ" }));
+
+  // 4問目: fuの類題 (sample-004) -> 正解 (2,900点) -> repaired
+  fireEvent.click(screen.getByRole("button", { name: /2,900点/ }));
+  fireEvent.click(screen.getByRole("button", { name: "次の問題へ" }));
+
+  // 5問目: 一般問題 (sample-005) -> 正解 (1,300・2,600点)
+  fireEvent.click(screen.getByRole("button", { name: /1,300・2,600点/ }));
+  fireEvent.click(screen.getByRole("button", { name: "結果を見る" }));
+
+  // 結果画面
+  expect(
+    screen.getByRole("heading", { name: "5問完了！" }),
+  ).toBeInTheDocument();
+  expect(screen.getByRole("region", { name: "診断結果" })).toBeInTheDocument();
+  expect(screen.getByText(/別の問題で正解できました/)).toBeInTheDocument();
+  expect(screen.getAllByText(/符計算/).length).toBeGreaterThan(0);
+});
+
+it("supports skipping the probe", () => {
+  render(<QuizPage />, { wrapper: MemoryRouter });
+
+  // 1問目: 誤答 (2,000点)
+  fireEvent.click(screen.getByRole("button", { name: /2,000点/ }));
+  expect(
+    screen.getByRole("heading", { name: "計算の途中を確認します" }),
+  ).toBeInTheDocument();
+
+  // スキップ
+  fireEvent.click(
+    screen.getByRole("button", { name: "今回は答えない（スキップ）" }),
+  );
+
+  // 内訳解説画面へ遷移
+  expect(
+    screen.getByRole("heading", { name: "正解と内訳を確認します" }),
+  ).toBeInTheDocument();
+});
