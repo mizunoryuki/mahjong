@@ -107,6 +107,11 @@ test("persists session progress across auxiliary page navigation", async ({
   // 1問目の回答後状態（正解です）が保持されている
   await expect(page.getByRole("heading", { name: "正解です" })).toBeVisible();
   await expect(page.getByRole("button", { name: "次の問題へ" })).toBeVisible();
+
+  // 再読み込み後も、遷移IDが衝突せず次の問題へ進める
+  await page.reload();
+  await page.getByRole("button", { name: "次の問題へ" }).click();
+  await expect(page.getByText(/現在 2問目 \/ 全5問/)).toBeVisible();
 });
 
 test("navigates through diagnostic probe on wrong answer and displays diagnosis card", async ({
@@ -124,6 +129,11 @@ test("navigates through diagnostic probe on wrong answer and displays diagnosis 
 
   // プローブ回答: 1飜、30符
   await page.getByRole("button", { name: "1飜" }).click();
+  await page.reload();
+  await expect(page.getByRole("button", { name: "1飜" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
   await page.getByRole("button", { name: "30符" }).click();
   await page
     .getByRole("button", { name: "回答して正解と内訳を確認する" })

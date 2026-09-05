@@ -290,6 +290,13 @@ const diagnosisSchema = z.discriminatedUnion("eligible", [
   }),
 ]);
 
+const isoDateTimePattern =
+  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/;
+
+function isIsoDateTime(value: string): boolean {
+  return isoDateTimePattern.test(value) && !Number.isNaN(Date.parse(value));
+}
+
 export const questionSchema = z
   .object({
     schemaVersion: z.literal(1),
@@ -358,6 +365,48 @@ export const questionSchema = z
     }),
   })
   .superRefine((question, context) => {
+    const requiresReviewedContract =
+      question.status === "reviewed" || question.status === "published";
+    if (requiresReviewedContract) {
+      if (!question.hand.decomposition) {
+        context.addIssue({
+          code: "custom",
+          path: ["hand", "decomposition"],
+          message: "レビュー済み・公開問題には手牌分解が必要です",
+        });
+      }
+
+      const basis = question.solution.basis;
+      const hasFullScoringBasis =
+        basis.kind === "hanFu" ? "yaku" in basis : "yakumanId" in basis;
+      if (!hasFullScoringBasis) {
+        context.addIssue({
+          code: "custom",
+          path: ["solution", "basis"],
+          message: "レビュー済み・公開問題には完全なScoringBasisが必要です",
+        });
+      }
+
+      if (
+        question.provenance.author.trim().toLocaleLowerCase("en-US") ===
+        question.provenance.reviewer.trim().toLocaleLowerCase("en-US")
+      ) {
+        context.addIssue({
+          code: "custom",
+          path: ["provenance", "reviewer"],
+          message: "レビュー担当者は問題作者と別人である必要があります",
+        });
+      }
+
+      if (!isIsoDateTime(question.provenance.reviewedAt)) {
+        context.addIssue({
+          code: "custom",
+          path: ["provenance", "reviewedAt"],
+          message: "レビュー日時はISO 8601形式の日時である必要があります",
+        });
+      }
+    }
+
     const expectedConcealedCount = 13 - 3 * question.hand.melds.length;
     if (question.hand.concealed.length !== expectedConcealedCount) {
       context.addIssue({
@@ -417,18 +466,29 @@ export const questionSchema = z
       });
     }
 
-    const calculatedPayment = calculatePayment(
-      question.solution.basis,
-      question.context.seatWind === "east" ? "dealer" : "nonDealer",
-      question.context.winSource.method,
-    );
-    if (
-      paymentKey(calculatedPayment) !== paymentKey(question.solution.payment)
-    ) {
+    try {
+      const calculatedPayment = calculatePayment(
+        question.solution.basis,
+        question.context.seatWind === "east" ? "dealer" : "nonDealer",
+        question.context.winSource.method,
+      );
+      if (
+        paymentKey(calculatedPayment) !== paymentKey(question.solution.payment)
+      ) {
+        context.addIssue({
+          code: "custom",
+          path: ["solution", "payment"],
+          message: "計算された支払いと解答の支払い内容が一致しません",
+        });
+      }
+    } catch (error) {
       context.addIssue({
         code: "custom",
-        path: ["solution", "payment"],
-        message: "計算された支払いと解答の支払い内容が一致しません",
+        path: ["solution", "basis"],
+        message:
+          error instanceof Error
+            ? `点数計算の前提が不正です: ${error.message}`
+            : "点数計算の前提が不正です",
       });
     }
 
@@ -522,50 +582,72 @@ export const questionSchema = z
         ...question.hand.melds.flatMap((meld) => meld.tiles),
       ] as TileCode[];
 
-      const expectedBonus = deriveBonus({
-        handTiles: allHandTiles,
-        doraIndicators: question.hand.doraIndicators as TileCode[],
-        uraDoraIndicators: question.hand.uraDoraIndicators as TileCode[],
-        isRiichi: question.context.riichi !== "none",
-      });
+      try {
+        const expectedBonus = deriveBonus({
+          handTiles: allHandTiles,
+          doraIndicators: question.hand.doraIndicators as TileCode[],
+          uraDoraIndicators: question.hand.uraDoraIndicators as TileCode[],
+          isRiichi: question.context.riichi !== "none",
+        });
 
-      if (
-        basis.bonus.dora !== expectedBonus.dora ||
-        basis.bonus.uraDora !== expectedBonus.uraDora ||
-        basis.bonus.redDora !== expectedBonus.redDora
-      ) {
+        if (
+          basis.bonus.dora !== expectedBonus.dora ||
+          basis.bonus.uraDora !== expectedBonus.uraDora ||
+          basis.bonus.redDora !== expectedBonus.redDora
+        ) {
+          context.addIssue({
+            code: "custom",
+            path: ["solution", "basis", "bonus"],
+            message: `ドラ枚数が一致しません: 期待値(ドラ=${expectedBonus.dora}, 裏ドラ=${expectedBonus.uraDora}, 赤ドラ=${expectedBonus.redDora})、実際値(ドラ=${basis.bonus.dora}, 裏ドラ=${basis.bonus.uraDora}, 赤ドラ=${basis.bonus.redDora})`,
+          });
+        }
+      } catch (error) {
         context.addIssue({
           code: "custom",
           path: ["solution", "basis", "bonus"],
-          message: `ドラ枚数が一致しません: 期待値(ドラ=${expectedBonus.dora}, 裏ドラ=${expectedBonus.uraDora}, 赤ドラ=${expectedBonus.redDora})、実際値(ドラ=${basis.bonus.dora}, 裏ドラ=${basis.bonus.uraDora}, 赤ドラ=${basis.bonus.redDora})`,
+          message:
+            error instanceof Error
+              ? `ドラ計算の前提が不正です: ${error.message}`
+              : "ドラ計算の前提が不正です",
         });
       }
 
       if (question.diagnosis.eligible) {
-        const yakuHan = sumYakuHan(basis.yaku, basis.closed);
-        const totalHan =
-          yakuHan +
-          basis.bonus.dora +
-          basis.bonus.uraDora +
-          basis.bonus.redDora;
-        const fu = resolveFu(basis.fu);
+        try {
+          const yakuHan = sumYakuHan(basis.yaku, basis.closed);
+          const totalHan =
+            yakuHan +
+            basis.bonus.dora +
+            basis.bonus.uraDora +
+            basis.bonus.redDora;
+          const fu = resolveFu(basis.fu);
 
-        if (!question.diagnosis.probe.hanOptions.includes(totalHan)) {
+          if (!question.diagnosis.probe.hanOptions.includes(totalHan)) {
+            context.addIssue({
+              code: "custom",
+              path: ["diagnosis", "probe", "hanOptions"],
+              message: `飜プローブ選択肢に正解の飜数 (${totalHan}) が含まれている必要があります`,
+            });
+          }
+          if (
+            !(question.diagnosis.probe.fuOptions as readonly number[]).includes(
+              fu,
+            )
+          ) {
+            context.addIssue({
+              code: "custom",
+              path: ["diagnosis", "probe", "fuOptions"],
+              message: `符プローブ選択肢に正解の符数 (${fu}) が含まれている必要があります`,
+            });
+          }
+        } catch (error) {
           context.addIssue({
             code: "custom",
-            path: ["diagnosis", "probe", "hanOptions"],
-            message: `飜プローブ選択肢に正解の飜数 (${totalHan}) が含まれている必要があります`,
-          });
-        }
-        if (
-          !(question.diagnosis.probe.fuOptions as readonly number[]).includes(
-            fu,
-          )
-        ) {
-          context.addIssue({
-            code: "custom",
-            path: ["diagnosis", "probe", "fuOptions"],
-            message: `符プローブ選択肢に正解の符数 (${fu}) が含まれている必要があります`,
+            path: ["solution", "basis"],
+            message:
+              error instanceof Error
+                ? `飜・符計算の前提が不正です: ${error.message}`
+                : "飜・符計算の前提が不正です",
           });
         }
       }

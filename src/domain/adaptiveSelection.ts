@@ -2,6 +2,7 @@ import type { Question } from "../content/schema";
 import {
   chooseFifthQuestion,
   chooseFollowup,
+  getCorrectHanFu,
   type CoarseDiagnosis,
   type DiagnosticObservation,
   type QuestionRole,
@@ -14,13 +15,50 @@ export function toQuestionAnswerKey(
   followupFor?: CoarseDiagnosis,
 ): QuestionAnswerKey {
   const correct = question.options.find((o) => o.correct);
+  const correctHanFu = getCorrectHanFu(question);
+  if (question.diagnosis.eligible && !correctHanFu) {
+    throw new Error(
+      `diagnosis-eligible question ${question.id} requires a han/fu answer`,
+    );
+  }
   return {
     questionId: question.id,
+    revision: question.revision,
     optionIds: question.options.map((o) => o.id),
     correctOptionId: correct ? correct.id : question.options[0]!.id,
+    diagnosis:
+      question.diagnosis.eligible && correctHanFu
+        ? {
+            eligible: true,
+            correctHan: correctHanFu.han,
+            correctFu: correctHanFu.fu,
+            target: question.diagnosis.primaryCoarseTarget,
+            hanOptions: question.diagnosis.probe.hanOptions,
+            fuOptions: question.diagnosis.probe.fuOptions,
+          }
+        : { eligible: false },
     role,
     followupFor,
   };
+}
+
+export function matchesQuestionAnswerKey(
+  question: Question,
+  answerKey: QuestionAnswerKey,
+): boolean {
+  const current = toQuestionAnswerKey(
+    question,
+    answerKey.role,
+    answerKey.followupFor,
+  );
+  return (
+    current.questionId === answerKey.questionId &&
+    current.revision === answerKey.revision &&
+    current.correctOptionId === answerKey.correctOptionId &&
+    current.optionIds.length === answerKey.optionIds.length &&
+    current.optionIds.every((id, index) => id === answerKey.optionIds[index]) &&
+    JSON.stringify(current.diagnosis) === JSON.stringify(answerKey.diagnosis)
+  );
 }
 
 /**

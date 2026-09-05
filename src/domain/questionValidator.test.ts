@@ -52,9 +52,14 @@ describe("questionValidator", () => {
       },
     };
 
-    it("accepts a properly reviewed published question", () => {
+    it("rejects published questions that still use the draft-only scoring shape", () => {
       const errors = validateQuestion(publishedBase);
-      expect(errors).toEqual([]);
+      expect(errors).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ field: "hand.decomposition" }),
+          expect.objectContaining({ field: "solution.basis" }),
+        ]),
+      );
     });
 
     it("rejects published question with placeholder author", () => {

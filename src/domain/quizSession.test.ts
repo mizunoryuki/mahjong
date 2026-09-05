@@ -2,15 +2,19 @@ import { describe, expect, it } from "vitest";
 
 import {
   createQuizSession,
+  isQuizStateConsistent,
   quizReducer,
   selectQuestionIds,
   type QuestionAnswerKey,
+  type QuizState,
 } from "./quizSession";
 
 const question = (questionId: string): QuestionAnswerKey => ({
   questionId,
+  revision: 1,
   optionIds: ["a", "b", "c", "d"],
   correctOptionId: "a",
+  diagnosis: { eligible: false },
 });
 
 const initialQuestions = [question("q1"), question("q2"), question("q3")];
@@ -124,6 +128,211 @@ describe("quiz session", () => {
   });
 });
 
+describe("restored quiz integrity", () => {
+  function completedSession(): QuizState {
+    let state = createQuizSession({
+      sessionId: "restore-test",
+      seed: 1,
+      questions: initialQuestions,
+    });
+    for (let index = 0; index < 5; index += 1) {
+      const current = state.session.questions[state.session.currentIndex];
+      state = quizReducer(state, {
+        type: "submitAnswer",
+        transitionId: `restore-answer-${index}`,
+        questionId: current.questionId,
+        optionId: "a",
+      });
+      state = quizReducer(state, {
+        type: "continue",
+        transitionId: `restore-continue-${index}`,
+      });
+      if (state.phase === "selecting") {
+        state = quizReducer(state, {
+          type: "appendAdaptiveQuestion",
+          transitionId: `restore-select-${index}`,
+          question: { ...question(`q${index + 2}`), role: "general" },
+        });
+      }
+    }
+    return state;
+  }
+
+  const canonicalQuestions = [
+    question("q1"),
+    question("q2"),
+    question("q3"),
+    question("q4"),
+    question("q5"),
+  ];
+
+  it("accepts a state whose answers and summary can be reproduced", () => {
+    expect(
+      isQuizStateConsistent(
+        completedSession(),
+        canonicalQuestions,
+        initialQuestions,
+      ),
+    ).toBe(true);
+  });
+
+  it.each([
+    [
+      "answer correctness",
+      (state: QuizState) => {
+        (state.session.answers[0] as { correct: boolean }).correct = false;
+      },
+    ],
+    [
+      "answer key revision",
+      (state: QuizState) => {
+        (state.session.questions[0] as { revision: number }).revision = 99;
+      },
+    ],
+    [
+      "answer key correct option",
+      (state: QuizState) => {
+        (
+          state.session.questions[0] as { correctOptionId: string }
+        ).correctOptionId = "b";
+      },
+    ],
+    [
+      "derived observation",
+      (state: QuizState) => {
+        (
+          state.session.observations[0] as { finalAnswerCorrect: boolean }
+        ).finalAnswerCorrect = false;
+      },
+    ],
+    [
+      "derived summary",
+      (state: QuizState) => {
+        if (state.phase === "summary") state.correctCount = 0;
+      },
+    ],
+  ])("rejects tampered %s", (_label, tamper) => {
+    const state = structuredClone(completedSession());
+    tamper(state);
+    expect(
+      isQuizStateConsistent(state, canonicalQuestions, initialQuestions),
+    ).toBe(false);
+  });
+
+  it("rejects swapping otherwise valid fourth and fifth questions", () => {
+    const state = structuredClone(completedSession());
+    const questions = [...state.session.questions];
+    const answers = [...state.session.answers];
+    const observations = [...state.session.observations];
+    [questions[3], questions[4]] = [questions[4], questions[3]];
+    [answers[3], answers[4]] = [answers[4], answers[3]];
+    [observations[3], observations[4]] = [observations[4], observations[3]];
+    state.session.questions = questions;
+    state.session.answers = answers;
+    state.session.observations = observations;
+
+    expect(
+      isQuizStateConsistent(state, canonicalQuestions, initialQuestions),
+    ).toBe(false);
+  });
+
+  it("rejects swapping seed-selected calibration questions", () => {
+    const state = structuredClone(completedSession());
+    const questions = [...state.session.questions];
+    const answers = [...state.session.answers];
+    const observations = [...state.session.observations];
+    [questions[0], questions[1]] = [questions[1], questions[0]];
+    [answers[0], answers[1]] = [answers[1], answers[0]];
+    [observations[0], observations[1]] = [observations[1], observations[0]];
+    observations[0] = { ...observations[0], slot: 1 };
+    observations[1] = { ...observations[1], slot: 2 };
+    state.session.questions = questions;
+    state.session.answers = answers;
+    state.session.observations = observations;
+
+    expect(
+      isQuizStateConsistent(state, canonicalQuestions, initialQuestions),
+    ).toBe(false);
+  });
+
+  it("rejects changing a selected followup into a general question", () => {
+    const fuQuestion = {
+      ...question("q1"),
+      diagnosis: {
+        eligible: true as const,
+        correctHan: 1,
+        correctFu: 40,
+        target: "fu" as const,
+        hanOptions: [1, 2, 3],
+        fuOptions: [30, 40, 50],
+      },
+    };
+    const fuFollowup = {
+      ...question("q4"),
+      diagnosis: {
+        eligible: true as const,
+        correctHan: 2,
+        correctFu: 40,
+        target: "fu" as const,
+        hanOptions: [1, 2, 3],
+        fuOptions: [30, 40, 50],
+      },
+    };
+    const bank = [fuQuestion, question("q2"), question("q3"), fuFollowup];
+    let state = createQuizSession({
+      sessionId: "followup-restore",
+      seed: 1,
+      questions: bank.slice(0, 3),
+    });
+    state = quizReducer(state, {
+      type: "submitAnswer",
+      transitionId: "wrong",
+      questionId: "q1",
+      optionId: "b",
+    });
+    state = quizReducer(state, {
+      type: "updateProbe",
+      transitionId: "draft-probe",
+      questionId: "q1",
+      responseDraft: { han: 1, fu: 30 },
+    });
+    state = quizReducer(state, {
+      type: "submitProbe",
+      transitionId: "probe",
+      questionId: "q1",
+      response: { skipped: false, han: 1, fu: 30 },
+    });
+    state = quizReducer(state, { type: "continue", transitionId: "next-1" });
+    for (const questionId of ["q2", "q3"]) {
+      state = quizReducer(state, {
+        type: "submitAnswer",
+        transitionId: `answer-${questionId}`,
+        questionId,
+        optionId: "a",
+      });
+      state = quizReducer(state, {
+        type: "continue",
+        transitionId: `continue-${questionId}`,
+      });
+    }
+    state = quizReducer(state, {
+      type: "appendAdaptiveQuestion",
+      transitionId: "append-followup",
+      question: { ...fuFollowup, role: "followup", followupFor: "fu" },
+    });
+    expect(isQuizStateConsistent(state, bank, bank.slice(0, 3))).toBe(true);
+
+    const tampered = structuredClone(state);
+    const storedFourth = tampered.session.questions[3] as QuestionAnswerKey;
+    (tampered.session.questions as QuestionAnswerKey[])[3] = {
+      ...storedFourth,
+      role: "general",
+      followupFor: undefined,
+    };
+    expect(isQuizStateConsistent(tampered, bank, bank.slice(0, 3))).toBe(false);
+  });
+});
+
 describe("question selection", () => {
   it("is deterministic and independent of candidate input order", () => {
     const candidates = ["q7", "q2", "q9", "q1", "q4", "q6", "q3"];
@@ -144,18 +353,31 @@ describe("question selection", () => {
 });
 
 describe("quiz session with probe and diagnosis", () => {
-  it("transitions to probe phase on incorrect answer when requiresProbe is true", () => {
+  it("derives probe eligibility and observations from the answer key", () => {
     const initial = createQuizSession({
       sessionId: "s1",
       seed: 1,
-      questions: initialQuestions,
+      questions: [
+        {
+          ...question("q1"),
+          diagnosis: {
+            eligible: true,
+            correctHan: 1,
+            correctFu: 40,
+            target: "fu",
+            hanOptions: [1, 2, 3],
+            fuOptions: [30, 40, 50],
+          },
+        },
+        question("q2"),
+        question("q3"),
+      ],
     });
     const probeState = quizReducer(initial, {
       type: "submitAnswer",
       transitionId: "t1",
       questionId: "q1",
       optionId: "b",
-      requiresProbe: true,
     });
 
     expect(probeState.phase).toBe("probe");
@@ -167,23 +389,66 @@ describe("quiz session with probe and diagnosis", () => {
       });
     }
 
-    const feedbackState = quizReducer(probeState, {
+    const draftedState = quizReducer(probeState, {
+      type: "updateProbe",
+      transitionId: "draft",
+      questionId: "q1",
+      responseDraft: { han: 1, fu: 30 },
+    });
+    const feedbackState = quizReducer(draftedState, {
       type: "submitProbe",
       transitionId: "t2",
       questionId: "q1",
-      observation: {
-        slot: 1,
-        problemId: "q1",
-        role: "calibration",
-        finalAnswerCorrect: false,
-        diagnosticUseful: true,
-        coarseDiagnosis: "fu",
-      },
+      response: { skipped: false, han: 1, fu: 30 },
     });
 
     expect(feedbackState.phase).toBe("feedback");
     expect(feedbackState.session.observations).toHaveLength(1);
     expect(feedbackState.session.observations[0]?.coarseDiagnosis).toBe("fu");
+  });
+
+  it("ignores probe values that are not offered by the question", () => {
+    const bank: QuestionAnswerKey[] = [
+      {
+        ...question("q1"),
+        diagnosis: {
+          eligible: true,
+          correctHan: 1,
+          correctFu: 40,
+          target: "fu",
+          hanOptions: [1, 2, 3],
+          fuOptions: [30, 40, 50],
+        },
+      },
+      question("q2"),
+      question("q3"),
+    ];
+    const initial = createQuizSession({
+      sessionId: "s1",
+      seed: 1,
+      questions: bank,
+    });
+    const probeState = quizReducer(initial, {
+      type: "submitAnswer",
+      transitionId: "wrong-answer",
+      questionId: "q1",
+      optionId: "b",
+    });
+
+    expect(
+      quizReducer(probeState, {
+        type: "submitProbe",
+        transitionId: "invalid-probe",
+        questionId: "q1",
+        response: { skipped: false, han: 999, fu: 999 },
+      }),
+    ).toBe(probeState);
+
+    if (probeState.phase === "probe") {
+      const tampered = structuredClone(probeState);
+      tampered.responseDraft = { han: 999, fu: 999 };
+      expect(isQuizStateConsistent(tampered, bank, bank)).toBe(false);
+    }
   });
 
   it("calculates diagnosisSummary in summary phase when observations exist", () => {
