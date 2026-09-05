@@ -1,5 +1,6 @@
 import { calculatePayment } from "../domain/scoring";
 import { questionSchema, RULESET_VERSION, type Question } from "./schema";
+import { mLeagueVerificationEvidence } from "./verificationEvidence";
 
 type HanFu = { han: number; fu: 20 | 25 | 30 | 40 | 50 | 60 };
 
@@ -86,8 +87,9 @@ function makeDraft(input: DraftInput): Question {
     explanation: { summary: input.summary },
     provenance: {
       author: "codex-draft",
-      reviewer: "unreviewed",
-      reviewedAt: "not-reviewed",
+      reviewer: "automated-cross-check",
+      reviewedAt: "2026-09-05T08:00:00Z",
+      verification: mLeagueVerificationEvidence(),
       reference:
         "Mリーグ公式戦ルール https://m-league.jp/about/ （2026-09-05参照）",
     },

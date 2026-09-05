@@ -9,7 +9,7 @@ import {
 
 export const defaultQuestionBankSource = {
   schemaVersion: 1,
-  bankVersion: "alpha-0.2.0",
+  bankVersion: "alpha-0.3.0",
   rulesetVersion: RULESET_VERSION,
   selectionAlgorithmVersion: 1,
   questions: [...sampleQuestions, ...alphaDraftQuestions],

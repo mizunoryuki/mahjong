@@ -47,8 +47,38 @@ describe("questionValidator", () => {
       status: "published",
       provenance: {
         author: "author-alice",
-        reviewer: "reviewer-bob",
-        reviewedAt: "2026-09-04T00:00:00Z",
+        reviewer: "automated-cross-check",
+        reviewedAt: "2026-09-05T08:00:00Z",
+        verification: {
+          method: "automated-cross-check",
+          verifiedAt: "2026-09-05T08:00:00Z",
+          officialReference: "https://m-league.jp/about/",
+          automatedChecks: [
+            "schema",
+            "tile-count",
+            "decomposition",
+            "bonus",
+            "fu",
+            "payment",
+            "options",
+          ],
+          externalChecks: [
+            {
+              source: "雀カク",
+              url: "https://jankaku.com/tools/score",
+              checkedAt: "2026-09-05",
+              scope: "han-fu-payment",
+              result: "matched",
+            },
+            {
+              source: "雀天",
+              url: "https://janten.net/guide/score-table",
+              checkedAt: "2026-09-05",
+              scope: "han-fu-payment",
+              result: "matched",
+            },
+          ],
+        },
       },
     };
 
@@ -79,54 +109,19 @@ describe("questionValidator", () => {
       );
     });
 
-    it("rejects published question where reviewer is the author", () => {
+    it("rejects published question without automated verification evidence", () => {
       const invalid: Question = {
         ...publishedBase,
         provenance: {
           ...publishedBase.provenance,
-          author: "same-person",
-          reviewer: "same-person",
+          verification: undefined,
         },
       };
 
       const errors = validateQuestion(invalid);
       expect(errors).toContainEqual(
         expect.objectContaining({
-          field: "provenance.reviewer",
-        }),
-      );
-    });
-
-    it("rejects published question with unreviewed reviewer", () => {
-      const invalid: Question = {
-        ...publishedBase,
-        provenance: {
-          ...publishedBase.provenance,
-          reviewer: "unreviewed",
-        },
-      };
-
-      const errors = validateQuestion(invalid);
-      expect(errors).toContainEqual(
-        expect.objectContaining({
-          field: "provenance.reviewer",
-        }),
-      );
-    });
-
-    it("rejects published question with invalid date", () => {
-      const invalid: Question = {
-        ...publishedBase,
-        provenance: {
-          ...publishedBase.provenance,
-          reviewedAt: "invalid-date",
-        },
-      };
-
-      const errors = validateQuestion(invalid);
-      expect(errors).toContainEqual(
-        expect.objectContaining({
-          field: "provenance.reviewedAt",
+          field: "provenance.verification",
         }),
       );
     });

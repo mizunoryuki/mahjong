@@ -25,7 +25,7 @@ function QuizRoute({ questionBank }: { questionBank: RuntimeQuestionBank }) {
         <p>
           {invalid
             ? "問題データを安全に確認できなかったため、出題を停止しています。"
-            : "監修済みの問題がそろうまで、点数計算の腕試しは公開していません。"}
+            : "検証・外部照合済みの問題がそろうまで、点数計算の腕試しは公開していません。"}
         </p>
         <p>
           {invalid

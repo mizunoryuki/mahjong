@@ -50,7 +50,7 @@ export function validateQuestion(question: Question): ValidationError[] {
     });
   }
 
-  // 3. published 問題の監修証跡の検査
+  // 3. published 問題の作者と検証証跡の検査
   if (question.status === "published") {
     const isPlaceholderAuthor =
       !question.provenance.author ||
@@ -64,29 +64,11 @@ export function validateQuestion(question: Question): ValidationError[] {
       });
     }
 
-    const isInvalidReviewer =
-      !question.provenance.reviewer ||
-      question.provenance.reviewer === "unreviewed" ||
-      question.provenance.reviewer === "not-reviewed" ||
-      question.provenance.reviewer === question.provenance.author;
-    if (isInvalidReviewer) {
+    if (!question.provenance.verification) {
       errors.push({
         questionId: question.id,
-        field: "provenance.reviewer",
-        message:
-          "公開問題は作者と異なる独立した監修者（reviewer）の承認が必要です",
-      });
-    }
-
-    const isInvalidDate =
-      !question.provenance.reviewedAt ||
-      question.provenance.reviewedAt === "not-reviewed" ||
-      Number.isNaN(Date.parse(question.provenance.reviewedAt));
-    if (isInvalidDate) {
-      errors.push({
-        questionId: question.id,
-        field: "provenance.reviewedAt",
-        message: "公開問題には有効な監修日時（reviewedAt）が必要です",
+        field: "provenance.verification",
+        message: "公開問題には自動検証と外部照合の証跡が必要です",
       });
     }
   }

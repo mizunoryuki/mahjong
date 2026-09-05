@@ -6,11 +6,20 @@ import { sampleQuestion } from "../content/sampleQuestion";
 import { sampleQuestions } from "../content/sampleQuestions";
 import type { Question } from "../content/schema";
 import { contextLabels } from "../domain/questionPresentation";
+import { reportQuestionUrl } from "../domain/questionReport";
 import { HandCard, QuizPage } from "./QuizPage";
 
 const testBankFingerprint = "test-bank|mleague-2026-v1|1|fixtures";
 
 describe("QuizPage", () => {
+  it("creates a report URL with immutable question identifiers", () => {
+    const url = new URL(reportQuestionUrl(sampleQuestions[0]));
+    expect(url.hostname).toBe("github.com");
+    expect(url.searchParams.get("title")).toContain("sample-001");
+    expect(url.searchParams.get("body")).toContain("revision: 1");
+    expect(url.searchParams.get("body")).toContain("mleague-2026-v1");
+  });
+
   it("shows the first question immediately", () => {
     render(
       <QuizPage

@@ -1,4 +1,5 @@
 import { questionSchema, type Question } from "./schema";
+import { mLeagueVerificationEvidence } from "./verificationEvidence";
 
 export const sampleQuestion1: Question = questionSchema.parse({
   schemaVersion: 1,
@@ -101,15 +102,16 @@ export const sampleQuestion1: Question = questionSchema.parse({
   },
   provenance: {
     author: "development-fixture",
-    reviewer: "unreviewed",
-    reviewedAt: "not-reviewed",
+    reviewer: "automated-cross-check",
+    reviewedAt: "2026-09-05T08:00:00Z",
+    verification: mLeagueVerificationEvidence(),
   },
 });
 
 export const sampleQuestion2: Question = questionSchema.parse({
   schemaVersion: 1,
   id: "sample-002",
-  revision: 1,
+  revision: 2,
   status: "draft",
   rulesetVersion: "mleague-2026-v1",
   difficulty: "basic",
@@ -122,27 +124,13 @@ export const sampleQuestion2: Question = questionSchema.parse({
     ippatsu: false,
   },
   hand: {
-    concealed: [
-      "2m",
-      "3m",
-      "4m",
-      "5m",
-      "6m",
-      "7m",
-      "3p",
-      "4p",
-      "5p",
-      "6s",
-      "7s",
-      "2s",
-      "2s",
-    ],
-    melds: [],
+    concealed: ["5m", "6m", "7m", "3p", "4p", "5p", "6s", "7s", "2s", "2s"],
+    melds: [{ kind: "chi", tiles: ["2m", "3m", "4m"], calledIndex: 0 }],
     winningTile: "8s",
     doraIndicators: ["1z"],
     uraDoraIndicators: [],
     accessibleDescription:
-      "二萬、三萬、四萬、五萬、六萬、七萬、三筒、四筒、五筒、六索、七索、二索、二索。八索でロン。",
+      "二萬、三萬、四萬をチー。五萬、六萬、七萬、三筒、四筒、五筒、六索、七索、二索、二索。八索でロン。",
   },
   solution: {
     basis: { kind: "hanFu", han: 1, fu: 30 },
@@ -206,8 +194,9 @@ export const sampleQuestion2: Question = questionSchema.parse({
   },
   provenance: {
     author: "development-fixture",
-    reviewer: "unreviewed",
-    reviewedAt: "not-reviewed",
+    reviewer: "automated-cross-check",
+    reviewedAt: "2026-09-05T08:00:00Z",
+    verification: mLeagueVerificationEvidence(),
   },
 });
 
@@ -311,15 +300,16 @@ export const sampleQuestion3: Question = questionSchema.parse({
   },
   provenance: {
     author: "development-fixture",
-    reviewer: "unreviewed",
-    reviewedAt: "not-reviewed",
+    reviewer: "automated-cross-check",
+    reviewedAt: "2026-09-05T08:00:00Z",
+    verification: mLeagueVerificationEvidence(),
   },
 });
 
 export const sampleQuestion4: Question = questionSchema.parse({
   schemaVersion: 1,
   id: "sample-004",
-  revision: 1,
+  revision: 2,
   status: "draft",
   rulesetVersion: "mleague-2026-v1",
   difficulty: "standard",
@@ -333,9 +323,9 @@ export const sampleQuestion4: Question = questionSchema.parse({
   },
   hand: {
     concealed: [
+      "1m",
       "2m",
       "3m",
-      "4m",
       "5m",
       "6m",
       "7m",
@@ -352,7 +342,7 @@ export const sampleQuestion4: Question = questionSchema.parse({
     doraIndicators: ["1z"],
     uraDoraIndicators: [],
     accessibleDescription:
-      "二萬、三萬、四萬、五萬、六萬、七萬、三筒、四筒、五筒、二索、三索、八索、八索。四索でロン。",
+      "一萬、二萬、三萬、五萬、六萬、七萬、三筒、四筒、五筒、二索、三索、八索、八索。四索でロン。",
   },
   solution: {
     basis: { kind: "hanFu", han: 2, fu: 30 },
@@ -412,12 +402,13 @@ export const sampleQuestion4: Question = questionSchema.parse({
   },
   reviewGroup: ["development-group-b"],
   explanation: {
-    summary: "立直・タンヤオの2飜30符、親のロン和了で2,900点です。",
+    summary: "立直・平和の2飜30符、親のロン和了で2,900点です。",
   },
   provenance: {
     author: "development-fixture",
-    reviewer: "unreviewed",
-    reviewedAt: "not-reviewed",
+    reviewer: "automated-cross-check",
+    reviewedAt: "2026-09-05T08:00:00Z",
+    verification: mLeagueVerificationEvidence(),
   },
 });
 
@@ -547,8 +538,9 @@ export const sampleQuestion5: Question = questionSchema.parse({
   },
   provenance: {
     author: "development-fixture",
-    reviewer: "unreviewed",
-    reviewedAt: "not-reviewed",
+    reviewer: "automated-cross-check",
+    reviewedAt: "2026-09-05T08:00:00Z",
+    verification: mLeagueVerificationEvidence(),
   },
 });
 

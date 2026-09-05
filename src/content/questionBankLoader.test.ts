@@ -23,6 +23,19 @@ describe("loadQuestionBank", () => {
     ).toBe("draft");
   });
 
+  it("records two independent external payment checks for every candidate", () => {
+    const result = loadQuestionBank(defaultQuestionBankSource, "development");
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+
+    for (const question of result.value.playableQuestions) {
+      const checks = question.provenance.verification?.externalChecks ?? [];
+      expect(checks).toHaveLength(2);
+      expect(new Set(checks.map((check) => check.url)).size).toBe(2);
+      expect(checks.every((check) => check.result === "matched")).toBe(true);
+    }
+  });
+
   it("returns stable, sorted errors", () => {
     const result = loadQuestionBank(
       {
