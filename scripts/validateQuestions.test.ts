@@ -17,13 +17,13 @@ function captureIo() {
 }
 
 describe("runQuestionValidation", () => {
-  it("accepts the five draft fixtures in development", () => {
+  it("accepts the fifteen draft fixtures in development", () => {
     const capture = captureIo();
     expect(
       runQuestionValidation([], defaultQuestionBankSource, capture.io),
     ).toBe(0);
     expect(capture.error).toEqual([]);
-    expect(capture.out.join("\n")).toContain("出題対象5問");
+    expect(capture.out.join("\n")).toContain("出題対象15問");
   });
 
   it("returns 1 and aggregates schema errors without a stack", () => {

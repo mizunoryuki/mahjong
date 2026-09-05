@@ -459,6 +459,9 @@ export function resolveBasicPoints(basis: PointBasis): number {
     if (totalHan === 5) return 2000;
 
     const fu = resolveFu(basis.fu);
+    if ((totalHan === 4 && fu === 30) || (totalHan === 3 && fu === 60)) {
+      return 2000;
+    }
     const uncapped = fu * 2 ** (totalHan + 2);
     return uncapped >= 2000 ? 2000 : uncapped;
   }
@@ -469,6 +472,13 @@ export function resolveBasicPoints(basis: PointBasis): number {
   if (basis.han >= 11) return 6000;
   if (basis.han >= 8) return 4000;
   if (basis.han >= 6) return 3000;
+
+  if (
+    (basis.han === 4 && basis.fu === 30) ||
+    (basis.han === 3 && basis.fu === 60)
+  ) {
+    return 2000;
+  }
 
   const uncapped = basis.fu * 2 ** (basis.han + 2);
   return basis.han === 5 || uncapped >= 2000 ? 2000 : uncapped;

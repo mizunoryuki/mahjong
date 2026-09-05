@@ -14,7 +14,7 @@ describe("questionValidator", () => {
     const bank: QuestionBank = {
       schemaVersion: 1,
       bankVersion: "test-bank",
-      rulesetVersion: "jp-riichi-4p-v1",
+      rulesetVersion: "mleague-2026-v1",
       selectionAlgorithmVersion: 1,
       questions: [sampleQuestion],
     };
@@ -148,7 +148,7 @@ describe("questionValidator", () => {
       const bank: QuestionBank = {
         schemaVersion: 1,
         bankVersion: "test-bank",
-        rulesetVersion: "jp-riichi-4p-v1",
+        rulesetVersion: "mleague-2026-v1",
         selectionAlgorithmVersion: 1,
         questions: [questionA, questionB],
       };
@@ -178,7 +178,7 @@ describe("questionValidator", () => {
       const bank: QuestionBank = {
         schemaVersion: 1,
         bankVersion: "test-bank",
-        rulesetVersion: "jp-riichi-4p-v1",
+        rulesetVersion: "mleague-2026-v1",
         selectionAlgorithmVersion: 1,
         questions: [questionA, questionB],
       };

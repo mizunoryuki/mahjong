@@ -8,7 +8,7 @@ import type { Question } from "../content/schema";
 import { contextLabels } from "../domain/questionPresentation";
 import { HandCard, QuizPage } from "./QuizPage";
 
-const testBankFingerprint = "test-bank|jp-riichi-4p-v1|1|fixtures";
+const testBankFingerprint = "test-bank|mleague-2026-v1|1|fixtures";
 
 describe("QuizPage", () => {
   it("shows the first question immediately", () => {

@@ -10,6 +10,8 @@ import {
   type TileCode,
 } from "../domain/scoring";
 
+export const RULESET_VERSION = "mleague-2026-v1" as const;
+
 export const tileCodeSchema = z.string().regex(/^(?:[0-9][mps]|[1-7]z)$/);
 
 const paymentSchema = z.discriminatedUnion("kind", [
@@ -303,7 +305,7 @@ export const questionSchema = z
     id: z.string().regex(/^[a-z0-9][a-z0-9-]*$/),
     revision: z.number().int().positive(),
     status: z.enum(["draft", "reviewed", "published", "retired"]),
-    rulesetVersion: z.literal("jp-riichi-4p-v1"),
+    rulesetVersion: z.literal(RULESET_VERSION),
     difficulty: z.enum(["basic", "standard", "advanced"]),
     calibrationAxis: z.enum(["fu", "han", "payout", "general"]),
     context: z.object({
@@ -682,7 +684,7 @@ export const questionBankSchema = z
   .object({
     schemaVersion: z.literal(1),
     bankVersion: z.string().min(1),
-    rulesetVersion: z.literal("jp-riichi-4p-v1"),
+    rulesetVersion: z.literal(RULESET_VERSION),
     selectionAlgorithmVersion: z.literal(1),
     questions: z.array(questionSchema),
   })

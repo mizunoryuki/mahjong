@@ -9,7 +9,7 @@ describe("runtime question bank", () => {
     expect(result.available).toBe(true);
     if (result.available) {
       expect(result.value.profile).toBe("development");
-      expect(result.value.playableQuestions).toHaveLength(5);
+      expect(result.value.playableQuestions).toHaveLength(15);
       expect(
         result.value.playableQuestions.every(
           (question) => question.status === "draft",

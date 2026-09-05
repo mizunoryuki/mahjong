@@ -385,7 +385,7 @@ describe("questionBankSchema", () => {
       questionBankSchema.parse({
         schemaVersion: 1,
         bankVersion: "development-1",
-        rulesetVersion: "jp-riichi-4p-v1",
+        rulesetVersion: "mleague-2026-v1",
         selectionAlgorithmVersion: 1,
         questions: [sampleQuestion, sampleQuestion],
       }),

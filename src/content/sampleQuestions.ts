@@ -5,7 +5,7 @@ export const sampleQuestion1: Question = questionSchema.parse({
   id: "sample-001",
   revision: 1,
   status: "draft",
-  rulesetVersion: "jp-riichi-4p-v1",
+  rulesetVersion: "mleague-2026-v1",
   difficulty: "basic",
   calibrationAxis: "fu",
   context: {
@@ -111,7 +111,7 @@ export const sampleQuestion2: Question = questionSchema.parse({
   id: "sample-002",
   revision: 1,
   status: "draft",
-  rulesetVersion: "jp-riichi-4p-v1",
+  rulesetVersion: "mleague-2026-v1",
   difficulty: "basic",
   calibrationAxis: "han",
   context: {
@@ -216,7 +216,7 @@ export const sampleQuestion3: Question = questionSchema.parse({
   id: "sample-003",
   revision: 1,
   status: "draft",
-  rulesetVersion: "jp-riichi-4p-v1",
+  rulesetVersion: "mleague-2026-v1",
   difficulty: "standard",
   calibrationAxis: "payout",
   context: {
@@ -321,7 +321,7 @@ export const sampleQuestion4: Question = questionSchema.parse({
   id: "sample-004",
   revision: 1,
   status: "draft",
-  rulesetVersion: "jp-riichi-4p-v1",
+  rulesetVersion: "mleague-2026-v1",
   difficulty: "standard",
   calibrationAxis: "fu",
   context: {
@@ -426,7 +426,7 @@ export const sampleQuestion5: Question = questionSchema.parse({
   id: "sample-005",
   revision: 1,
   status: "draft",
-  rulesetVersion: "jp-riichi-4p-v1",
+  rulesetVersion: "mleague-2026-v1",
   difficulty: "advanced",
   calibrationAxis: "payout",
   context: {

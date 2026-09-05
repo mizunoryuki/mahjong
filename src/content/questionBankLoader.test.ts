@@ -7,7 +7,20 @@ describe("loadQuestionBank", () => {
   it("parses unknown input and returns every non-retired development question", () => {
     const result = loadQuestionBank(defaultQuestionBankSource, "development");
     expect(result.success).toBe(true);
-    if (result.success) expect(result.value.playableQuestions).toHaveLength(5);
+    if (result.success) expect(result.value.playableQuestions).toHaveLength(15);
+  });
+
+  it("includes the M League boundary drafts without publishing them", () => {
+    const result = loadQuestionBank(defaultQuestionBankSource, "development");
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+
+    expect(result.value.bank.rulesetVersion).toBe("mleague-2026-v1");
+    expect(
+      result.value.playableQuestions.find(
+        (question) => question.id === "alpha-kiriage-ron-001",
+      )?.status,
+    ).toBe("draft");
   });
 
   it("returns stable, sorted errors", () => {
