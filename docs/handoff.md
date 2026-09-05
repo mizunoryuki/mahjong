@@ -68,14 +68,14 @@ npm run test:e2e -- --project=chromium
 - development / production / alpha / beta profileを持つ実問題バンク検証CLI。正常・検証エラー・利用方法エラーをexit code 0 / 1 / 2で区別する。
 - CIはdevelopment、CDはproduction profileを明示して検証する。
 - 本番は`published`問題だけを読み込み、0件なら「問題を準備しています」と表示する。公開開始後にα条件の15問未満ならデプロイ検証を失敗させる。
-- `reviewed` / `published`問題では、完全な点数内訳、作者と異なる監修者、ISO形式の監修日時を必須にする。
+- `reviewed` / `published`問題では、完全な点数内訳、必須自動検査7項目、公式資料、異なる外部資料2件の照合証跡を必須にする。
 - 保存状態versionをv2へ更新。bank / ruleset / selection algorithm / 問題revisionのfingerprintが一致しない状態を破棄する。
 - 保存された正誤、プローブ観察、診断集計を正規問題から再計算し、不整合な状態を復元しない。
 - プローブの途中選択を保存し、問題ごとに許可された飜・符候補以外は復元・送信しない。
 - 再読み込み後も操作IDが衝突しないよう、遷移IDを`crypto.randomUUID()`で生成する。
 - production build専用E2Eで、未監修の下書き問題が出題されないことを確認する。
 - ルールセットを`mleague-2026-v1`へ固定し、Mリーグ公式戦ルールの切り上げ満貫（3翻60符・4翻30符）と連風牌雀頭2符を明文化した。
-- α候補10問を追加し、開発用問題バンクを合計15問にした。追加分は全て`draft`で、完全内訳の技術ゲート通過前には本番へ出題されない。
+- α候補10問を追加し、問題バンクを合計15問にした。全問へ完全な手牌分解とScoringBasisを追加し、`published`として本番出題可能にした。
 - 15問へMリーグ公式資料、雀カク、雀天の照合証跡を記録し、問題ID・revision・ruleset付きのGitHub問題報告導線を追加した。
 - 人間の独立監修を必須としない方針を`docs/adr-004-automated-content-verification.md`へ記録した。
 
@@ -94,7 +94,7 @@ npm run test:e2e -- --project=chromium
 | [#12 PROD-007](https://github.com/mizunoryuki/mahjong/issues/12) | 一部実装済み（表示契約・アクセシビリティ） | 固定commitの牌SVG差し替え、ライセンス通知、実機でのスクリーンリーダー最終確認                |
 | [#13 PROD-008](https://github.com/mizunoryuki/mahjong/issues/13) | 【完了・マージ済み (PR #23)】              | 1問目即時表示、4択、正誤、内訳、次問、5問結果、補助ページ復帰E2Eを完了                       |
 | [#14 PROD-009](https://github.com/mizunoryuki/mahjong/issues/14) | 【完了・マージ済み (PR #24)】              | 飜・符プローブUI、5結果診断決定表、4〜5問目の適応選定を実装・マージ完了                      |
-| [#15 PROD-010](https://github.com/mizunoryuki/mahjong/issues/15) | draft 15問・外部照合済み                   | 完全な手牌分解とScoringBasisを追記し、全自動検査を通して公開状態へ移行する                   |
+| [#15 PROD-010](https://github.com/mizunoryuki/mahjong/issues/15) | 15問published・検証済み                    | α公開後の問題報告を監視し、誤りがあれば対象問題をretiredへ変更する                           |
 | [#16 PROD-011](https://github.com/mizunoryuki/mahjong/issues/16) | 【完了・マージ済み (PR #24)】              | 決定表全行テスト、1,000 seedの決定性・不正confirmedゼロ件の不変条件検査を完了                |
 | [#17 PROD-012](https://github.com/mizunoryuki/mahjong/issues/17) | 未着手                                     | 対象者5〜8人でユーザーテストを実施し、設計書のゲートを評価する                               |
 | [#18 PROD-013](https://github.com/mizunoryuki/mahjong/issues/18) | α合格まで開始禁止                          | 二重監修済み問題を64問へ拡張する                                                             |
@@ -115,7 +115,7 @@ npm run test:e2e -- --project=chromium
    - ライセンス証跡・クレジット表示（`/about` または `/rules`）。
 3. **PROD-001 & PROD-010（Phase 3: 検証体制とα用問題）**:
    - 実装責任者がRule ownerを兼任し、ADR-004の証跡とretire手順を運用する。
-   - α用15〜20問へ完全内訳を追加し、全自動検査を通す（`npm run validate:questions`）。
+   - 【完了】α用15問へ完全内訳を追加し、全自動検査と外部照合を通した。
 4. **PROD-012 対象利用者テスト**:
    - 5〜8人によるプロトタイプ評価とゲート判定。
 
@@ -134,7 +134,7 @@ npm run test:e2e -- --project=chromium
 | Design / Accessibility      | 情報設計、牌表示、文言、キーボード・拡大・読み上げ品質              | 主要導線と本番用牌表示          |
 | Operations owner            | 監視、障害対応、問題停止、復旧確認                                  | 公開βの運用準備とincident close |
 
-AIは、実装、テスト生成、schema検査、差分レビュー、ドキュメント更新を担当できる。ただし、麻雀ルールの最終承認、問題の`published`化、ユーザーテストの合否、公開判断をAIだけで完結させない。
+AIは、実装、問題作成、テスト生成、schema検査、外部資料照合、差分レビュー、ドキュメント更新を担当できる。公開判断はADR-004の機械的なゲートとRule ownerの運用判断に従う。
 
 ## 7. 日常の開発フロー
 
