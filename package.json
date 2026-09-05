@@ -19,8 +19,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "validate:questions": "vitest run scripts/validateQuestions.test.ts",
-    "check": "npm run format:check && npm run lint && npm run typecheck && npm run validate:questions && npm test && npm run build"
+    "test:e2e:production": "playwright test --config=playwright.production.config.ts",
+    "validate:questions": "node --import tsx scripts/validateQuestions.ts",
+    "check": "npm run format:check && npm run lint && npm run typecheck && npm test && npm run build"
   },
   "dependencies": {
     "react": "19.2.8",

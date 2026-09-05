@@ -3,9 +3,94 @@ import { describe, expect, it } from "vitest";
 import { sampleQuestion } from "./sampleQuestion";
 import { questionBankSchema, questionSchema } from "./schema";
 
+function makeFullQuestion(
+  status: "draft" | "reviewed" | "published" = "draft",
+) {
+  return {
+    ...sampleQuestion,
+    status,
+    hand: {
+      ...sampleQuestion.hand,
+      decomposition: {
+        kind: "standard" as const,
+        pair: ["5z", "5z"] as const,
+        groups: [
+          {
+            kind: "sequence" as const,
+            tiles: ["1m", "2m", "3m"] as const,
+            openness: "closed" as const,
+          },
+          {
+            kind: "sequence" as const,
+            tiles: ["4m", "5m", "6m"] as const,
+            openness: "closed" as const,
+          },
+          {
+            kind: "sequence" as const,
+            tiles: ["7p", "8p", "9p"] as const,
+            openness: "closed" as const,
+          },
+          {
+            kind: "sequence" as const,
+            tiles: ["2s", "3s", "4s"] as const,
+            openness: "closed" as const,
+          },
+        ] as const,
+        winningPlacement: { kind: "pair" as const, wait: "tanki" as const },
+      },
+    },
+    solution: {
+      basis: {
+        kind: "hanFu" as const,
+        closed: true,
+        yaku: ["riichi" as const],
+        bonus: { dora: 0, uraDora: 0, redDora: 0 },
+        fu: {
+          kind: "standard" as const,
+          components: [
+            { kind: "base" as const, value: 20 as const },
+            { kind: "menzenRon" as const, value: 10 as const },
+            {
+              kind: "wait" as const,
+              value: 2 as const,
+              wait: "tanki" as const,
+            },
+          ],
+          rawFu: 32,
+          roundedFu: 40 as const,
+        },
+      },
+      payment: {
+        kind: "ron" as const,
+        winner: "nonDealer" as const,
+        points: 1300,
+      },
+    },
+    provenance: {
+      author: "author-alice",
+      reviewer: "reviewer-bob",
+      reviewedAt: "2026-09-04T00:00:00Z",
+    },
+  };
+}
+
 describe("questionSchema", () => {
   it("accepts the complete shape of a draft question", () => {
     expect(questionSchema.parse(sampleQuestion).id).toBe("sample-001");
+  });
+
+  it("keeps draft questions compatible with simplified data and provisional review metadata", () => {
+    const draft = {
+      ...sampleQuestion,
+      provenance: {
+        ...sampleQuestion.provenance,
+        author: "same-person",
+        reviewer: "same-person",
+        reviewedAt: "not-reviewed",
+      },
+    };
+
+    expect(questionSchema.safeParse(draft).success).toBe(true);
   });
 
   it("rejects duplicate payment choices", () => {
@@ -176,68 +261,81 @@ describe("questionSchema", () => {
   });
 
   it("accepts a question with full ScoringBasis and decomposition", () => {
-    const fullQuestion = {
-      ...sampleQuestion,
-      hand: {
-        ...sampleQuestion.hand,
-        decomposition: {
-          kind: "standard" as const,
-          pair: ["5z", "5z"] as const,
-          groups: [
-            {
-              kind: "sequence" as const,
-              tiles: ["1m", "2m", "3m"],
-              openness: "closed" as const,
-            },
-            {
-              kind: "sequence" as const,
-              tiles: ["4m", "5m", "6m"],
-              openness: "closed" as const,
-            },
-            {
-              kind: "sequence" as const,
-              tiles: ["7p", "8p", "9p"],
-              openness: "closed" as const,
-            },
-            {
-              kind: "sequence" as const,
-              tiles: ["2s", "3s", "4s"],
-              openness: "closed" as const,
-            },
-          ] as const,
-          winningPlacement: { kind: "pair" as const, wait: "tanki" as const },
+    const fullQuestion = makeFullQuestion();
+
+    expect(questionSchema.parse(fullQuestion).id).toBe("sample-001");
+  });
+
+  it.each(["reviewed", "published"] as const)(
+    "accepts a %s question with a full contract and independent review",
+    (status) => {
+      expect(questionSchema.safeParse(makeFullQuestion(status)).success).toBe(
+        true,
+      );
+    },
+  );
+
+  it.each(["reviewed", "published"] as const)(
+    "rejects a %s question with simplified basis and no decomposition",
+    (status) => {
+      const candidate = {
+        ...sampleQuestion,
+        status,
+        provenance: {
+          author: "author-alice",
+          reviewer: "reviewer-bob",
+          reviewedAt: "2026-09-04T00:00:00Z",
         },
-      },
+      };
+
+      const result = questionSchema.safeParse(candidate);
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.issues).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({ path: ["hand", "decomposition"] }),
+            expect.objectContaining({ path: ["solution", "basis"] }),
+          ]),
+        );
+      }
+    },
+  );
+
+  it.each(["reviewed", "published"] as const)(
+    "rejects a %s question reviewed by its author",
+    (status) => {
+      const candidate = makeFullQuestion(status);
+      candidate.provenance.reviewer = " AUTHOR-ALICE ";
+
+      expect(questionSchema.safeParse(candidate).success).toBe(false);
+    },
+  );
+
+  it.each(["reviewed", "published"] as const)(
+    "rejects a %s question without an ISO review datetime",
+    (status) => {
+      const candidate = makeFullQuestion(status);
+      candidate.provenance.reviewedAt = "2026-09-04";
+
+      expect(questionSchema.safeParse(candidate).success).toBe(false);
+    },
+  );
+
+  it("turns domain validation exceptions into safeParse issues", () => {
+    const fullQuestion = makeFullQuestion();
+    const candidate = {
+      ...fullQuestion,
       solution: {
+        ...fullQuestion.solution,
         basis: {
-          kind: "hanFu" as const,
-          closed: true,
-          yaku: ["riichi" as const],
-          bonus: { dora: 0, uraDora: 0, redDora: 0 },
-          fu: {
-            kind: "standard" as const,
-            components: [
-              { kind: "base" as const, value: 20 as const },
-              { kind: "menzenRon" as const, value: 10 as const },
-              {
-                kind: "wait" as const,
-                value: 2 as const,
-                wait: "tanki" as const,
-              },
-            ],
-            rawFu: 32,
-            roundedFu: 40 as const,
-          },
-        },
-        payment: {
-          kind: "ron" as const,
-          winner: "nonDealer" as const,
-          points: 1300,
+          ...fullQuestion.solution.basis,
+          yaku: ["riichi", "doubleRiichi"] as const,
         },
       },
     };
 
-    expect(questionSchema.parse(fullQuestion).id).toBe("sample-001");
+    expect(() => questionSchema.safeParse(candidate)).not.toThrow();
+    expect(questionSchema.safeParse(candidate).success).toBe(false);
   });
 
   it("rejects when decomposition does not match hand tiles", () => {
