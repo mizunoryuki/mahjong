@@ -33,6 +33,8 @@ export function toQuestionAnswerKey(
             correctHan: correctHanFu.han,
             correctFu: correctHanFu.fu,
             target: question.diagnosis.primaryCoarseTarget,
+            hanOptions: question.diagnosis.probe.hanOptions,
+            fuOptions: question.diagnosis.probe.fuOptions,
           }
         : { eligible: false },
     role,

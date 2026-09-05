@@ -263,6 +263,8 @@ describe("restored quiz integrity", () => {
         correctHan: 1,
         correctFu: 40,
         target: "fu" as const,
+        hanOptions: [1, 2, 3],
+        fuOptions: [30, 40, 50],
       },
     };
     const fuFollowup = {
@@ -272,6 +274,8 @@ describe("restored quiz integrity", () => {
         correctHan: 2,
         correctFu: 40,
         target: "fu" as const,
+        hanOptions: [1, 2, 3],
+        fuOptions: [30, 40, 50],
       },
     };
     const bank = [fuQuestion, question("q2"), question("q3"), fuFollowup];
@@ -285,6 +289,12 @@ describe("restored quiz integrity", () => {
       transitionId: "wrong",
       questionId: "q1",
       optionId: "b",
+    });
+    state = quizReducer(state, {
+      type: "updateProbe",
+      transitionId: "draft-probe",
+      questionId: "q1",
+      responseDraft: { han: 1, fu: 30 },
     });
     state = quizReducer(state, {
       type: "submitProbe",
@@ -355,6 +365,8 @@ describe("quiz session with probe and diagnosis", () => {
             correctHan: 1,
             correctFu: 40,
             target: "fu",
+            hanOptions: [1, 2, 3],
+            fuOptions: [30, 40, 50],
           },
         },
         question("q2"),
@@ -377,7 +389,13 @@ describe("quiz session with probe and diagnosis", () => {
       });
     }
 
-    const feedbackState = quizReducer(probeState, {
+    const draftedState = quizReducer(probeState, {
+      type: "updateProbe",
+      transitionId: "draft",
+      questionId: "q1",
+      responseDraft: { han: 1, fu: 30 },
+    });
+    const feedbackState = quizReducer(draftedState, {
       type: "submitProbe",
       transitionId: "t2",
       questionId: "q1",
@@ -387,6 +405,50 @@ describe("quiz session with probe and diagnosis", () => {
     expect(feedbackState.phase).toBe("feedback");
     expect(feedbackState.session.observations).toHaveLength(1);
     expect(feedbackState.session.observations[0]?.coarseDiagnosis).toBe("fu");
+  });
+
+  it("ignores probe values that are not offered by the question", () => {
+    const bank: QuestionAnswerKey[] = [
+      {
+        ...question("q1"),
+        diagnosis: {
+          eligible: true,
+          correctHan: 1,
+          correctFu: 40,
+          target: "fu",
+          hanOptions: [1, 2, 3],
+          fuOptions: [30, 40, 50],
+        },
+      },
+      question("q2"),
+      question("q3"),
+    ];
+    const initial = createQuizSession({
+      sessionId: "s1",
+      seed: 1,
+      questions: bank,
+    });
+    const probeState = quizReducer(initial, {
+      type: "submitAnswer",
+      transitionId: "wrong-answer",
+      questionId: "q1",
+      optionId: "b",
+    });
+
+    expect(
+      quizReducer(probeState, {
+        type: "submitProbe",
+        transitionId: "invalid-probe",
+        questionId: "q1",
+        response: { skipped: false, han: 999, fu: 999 },
+      }),
+    ).toBe(probeState);
+
+    if (probeState.phase === "probe") {
+      const tampered = structuredClone(probeState);
+      tampered.responseDraft = { han: 999, fu: 999 };
+      expect(isQuizStateConsistent(tampered, bank, bank)).toBe(false);
+    }
   });
 
   it("calculates diagnosisSummary in summary phase when observations exist", () => {

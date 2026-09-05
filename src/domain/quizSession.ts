@@ -16,6 +16,8 @@ export type QuestionDiagnosisContract =
       correctHan: number;
       correctFu: number;
       target: CoarseDiagnosis;
+      hanOptions: readonly number[];
+      fuOptions: readonly number[];
     };
 
 export type QuestionAnswerKey = {
@@ -125,11 +127,47 @@ function validateQuestions(questions: readonly QuestionAnswerKey[]) {
     }
     if (
       question.diagnosis.eligible &&
-      (question.diagnosis.correctHan < 1 || question.diagnosis.correctFu < 20)
+      (question.diagnosis.correctHan < 1 ||
+        question.diagnosis.correctFu < 20 ||
+        new Set(question.diagnosis.hanOptions).size !==
+          question.diagnosis.hanOptions.length ||
+        new Set(question.diagnosis.fuOptions).size !==
+          question.diagnosis.fuOptions.length ||
+        !question.diagnosis.hanOptions.includes(
+          question.diagnosis.correctHan,
+        ) ||
+        !question.diagnosis.fuOptions.includes(question.diagnosis.correctFu))
     ) {
       throw new Error(`invalid diagnosis contract for ${question.questionId}`);
     }
   }
+}
+
+function isAllowedProbeDraft(
+  question: QuestionAnswerKey,
+  draft: ProbeDraft,
+): boolean {
+  return (
+    question.diagnosis.eligible &&
+    (draft.han === undefined ||
+      draft.han === "unknown" ||
+      question.diagnosis.hanOptions.includes(draft.han)) &&
+    (draft.fu === undefined ||
+      draft.fu === "unknown" ||
+      question.diagnosis.fuOptions.includes(draft.fu))
+  );
+}
+
+function isAllowedProbeResponse(
+  question: QuestionAnswerKey,
+  response: ProbeResponse,
+): boolean {
+  return (
+    response.skipped ||
+    (isAllowedProbeDraft(question, response) &&
+      response.han !== undefined &&
+      response.fu !== undefined)
+  );
 }
 
 function toObservation(
@@ -330,6 +368,7 @@ export function isQuizStateConsistent(
       const awaitingProbe =
         state.phase === "probe" && index === session.answers.length - 1;
       const response = responseByQuestion.get(question.questionId);
+      if (response && !isAllowedProbeResponse(question, response)) return false;
       if (needsProbe === (response === undefined) && !awaitingProbe)
         return false;
       if ((!needsProbe || awaitingProbe) && response !== undefined)
@@ -348,6 +387,15 @@ export function isQuizStateConsistent(
     }
 
     if (responseByQuestion.size !== expectedProbeCount) return false;
+    if (
+      state.phase === "probe" &&
+      !isAllowedProbeDraft(
+        session.questions[session.currentIndex],
+        state.responseDraft,
+      )
+    ) {
+      return false;
+    }
     if (!sameValue(session.observations, expectedObservations)) return false;
 
     if (session.questions.length >= 4) {
@@ -485,10 +533,16 @@ export function quizReducer(state: QuizState, action: QuizAction): QuizState {
 
   if (state.phase === "probe" && action.type === "updateProbe") {
     const currentQuestion = state.session.questions[state.session.currentIndex];
-    if (action.questionId !== currentQuestion?.questionId) return state;
+    const responseDraft = { ...state.responseDraft, ...action.responseDraft };
+    if (
+      action.questionId !== currentQuestion?.questionId ||
+      !isAllowedProbeDraft(currentQuestion, responseDraft)
+    ) {
+      return state;
+    }
     return {
       ...state,
-      responseDraft: { ...state.responseDraft, ...action.responseDraft },
+      responseDraft,
       session: {
         ...state.session,
         appliedTransitionIds: [
@@ -501,7 +555,16 @@ export function quizReducer(state: QuizState, action: QuizAction): QuizState {
 
   if (state.phase === "probe" && action.type === "submitProbe") {
     const currentQuestion = state.session.questions[state.session.currentIndex];
-    if (action.questionId !== currentQuestion?.questionId) {
+    if (
+      action.questionId !== currentQuestion?.questionId ||
+      !isAllowedProbeResponse(currentQuestion, action.response) ||
+      (!action.response.skipped &&
+        !sameValue(action.response, {
+          skipped: false,
+          han: state.responseDraft.han,
+          fu: state.responseDraft.fu,
+        }))
+    ) {
       return state;
     }
 

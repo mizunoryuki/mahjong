@@ -60,7 +60,7 @@ npm run test:e2e -- --project=chromium
   - 診断決定表（`clear | candidate | repaired | confirmed | unknown`）による客観的・前向きな日本語診断結果カード
   - 決定表全行テストおよび1,000 seed網羅シミュレーションによる不変条件検査（不正confirmed・例外・非決定性ゼロ件）
 - **品質保証・自動テスト**:
-  - Vitest 単体・結合テスト（240 tests 全件パス）
+  - Vitest 単体・結合テスト（241 tests 全件パス）
   - Playwright E2E（Chromium / Mobile Chrome 全件パス）
 
 ### 作業ブランチで実装済み（merge待ち）
@@ -71,6 +71,7 @@ npm run test:e2e -- --project=chromium
 - `reviewed` / `published`問題では、完全な点数内訳、作者と異なる監修者、ISO形式の監修日時を必須にする。
 - 保存状態versionをv2へ更新。bank / ruleset / selection algorithm / 問題revisionのfingerprintが一致しない状態を破棄する。
 - 保存された正誤、プローブ観察、診断集計を正規問題から再計算し、不整合な状態を復元しない。
+- プローブの途中選択を保存し、問題ごとに許可された飜・符候補以外は復元・送信しない。
 - 再読み込み後も操作IDが衝突しないよう、遷移IDを`crypto.randomUUID()`で生成する。
 - production build専用E2Eで、未監修の下書き問題が出題されないことを確認する。
 
