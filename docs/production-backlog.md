@@ -1,14 +1,14 @@
 # 本番実装バックログ
 
-本番実装は、正確性を担保したα版を先に完成させ、対象利用者テストの合格後に公開βへ進む。チケットの完了順は依存関係に従い、監修ゲートをコードだけで代替しない。
+本番実装は、正確性を担保したα版を先に完成させ、対象利用者テストの合格後に公開βへ進む。公開条件は[ADR-004](adr-004-automated-content-verification.md)に従う。
 
 ## Phase 1: ドメインとコンテンツ基盤
 
-### PROD-001 Rule ownerと独立reviewerを決める
+### PROD-001 Rule ownerと検証運用を決める
 
 - Owner: PM
-- Blocker: 外部担当者の確保
-- 完了条件: Rule owner、問題作者と別人のRule reviewer、承認方法、緊急連絡先が記録される。
+- Blocker: なし
+- 完了条件: Rule owner、自動検証、外部照合、問題retire手順、緊急連絡方法が記録される。
 
 ### PROD-002 Question・QuestionBankスキーマ
 
@@ -20,7 +20,7 @@
 
 - Owner: Engineering + Rule owner
 - 依存: PROD-001
-- 完了条件: 役カタログ、ドラ、符、親子、ロンツモ、満貫以上を純粋関数で計算し、公式表由来fixtureを独立reviewerが承認する。
+- 完了条件: 役カタログ、ドラ、符、親子、ロンツモ、満貫以上を純粋関数で計算し、公式表と外部資料2系統に由来するfixtureが一致する。
 
 ### PROD-004 問題検証CLI
 
@@ -62,7 +62,7 @@
 - 依存: PROD-005
 - 完了条件: 誤答かつ診断適格な問題だけhan/fu probeを表示し、clear/candidate/repaired/confirmed/unknownを一意に返す。
 
-### PROD-010 α用15〜20問を二重監修する
+### PROD-010 α用15〜20問を検証・外部照合する
 
 - Owner: Content + Rule reviewer
 - 依存: PROD-001、PROD-003、PROD-004
@@ -96,4 +96,4 @@
 
 ## 現在の着手範囲
 
-現在はPROD-002／004／005／006のリリース境界を補強している。profile別の問題検証、本番での`published`限定、問題バンクに結び付いた安全なセッション復元を実装する。公開済み問題が0件の間は本番を準備中表示に閉じ、PROD-001の担当確定とPROD-010の二重監修が終わる前に仮問題を`published`へ変更しない。
+PROD-002／004／005／006のリリース境界を補強し、profile別の問題検証、本番での`published`限定、問題バンクに結び付いた安全なセッション復元を実装済み。PROD-010の15問はADR-004の完全内訳・自動検証・外部照合を通過し、`published`として本番出題可能になった。

@@ -10,6 +10,8 @@ import {
   type TileCode,
 } from "../domain/scoring";
 
+export const RULESET_VERSION = "mleague-2026-v1" as const;
+
 export const tileCodeSchema = z.string().regex(/^(?:[0-9][mps]|[1-7]z)$/);
 
 const paymentSchema = z.discriminatedUnion("kind", [
@@ -297,13 +299,43 @@ function isIsoDateTime(value: string): boolean {
   return isoDateTimePattern.test(value) && !Number.isNaN(Date.parse(value));
 }
 
+const requiredAutomatedChecks = [
+  "schema",
+  "tile-count",
+  "decomposition",
+  "bonus",
+  "fu",
+  "payment",
+  "options",
+] as const;
+
+const verificationSchema = z.object({
+  method: z.literal("automated-cross-check"),
+  verifiedAt: z.string().refine(isIsoDateTime, {
+    message: "検証日時はISO 8601形式の日時である必要があります",
+  }),
+  officialReference: z.literal("https://m-league.jp/about/"),
+  automatedChecks: z.array(z.enum(requiredAutomatedChecks)),
+  externalChecks: z
+    .array(
+      z.object({
+        source: z.string().min(1),
+        url: z.string().url(),
+        checkedAt: z.string().date(),
+        scope: z.enum(["han-fu-payment", "hand-score"]),
+        result: z.literal("matched"),
+      }),
+    )
+    .min(2),
+});
+
 export const questionSchema = z
   .object({
     schemaVersion: z.literal(1),
     id: z.string().regex(/^[a-z0-9][a-z0-9-]*$/),
     revision: z.number().int().positive(),
     status: z.enum(["draft", "reviewed", "published", "retired"]),
-    rulesetVersion: z.literal("jp-riichi-4p-v1"),
+    rulesetVersion: z.literal(RULESET_VERSION),
     difficulty: z.enum(["basic", "standard", "advanced"]),
     calibrationAxis: z.enum(["fu", "han", "payout", "general"]),
     context: z.object({
@@ -362,6 +394,7 @@ export const questionSchema = z
       reviewer: z.string().min(1),
       reviewedAt: z.string().min(1),
       reference: z.string().optional(),
+      verification: verificationSchema.optional(),
     }),
   })
   .superRefine((question, context) => {
@@ -387,23 +420,35 @@ export const questionSchema = z
         });
       }
 
-      if (
-        question.provenance.author.trim().toLocaleLowerCase("en-US") ===
-        question.provenance.reviewer.trim().toLocaleLowerCase("en-US")
-      ) {
+      const verification = question.provenance.verification;
+      if (!verification) {
         context.addIssue({
           code: "custom",
-          path: ["provenance", "reviewer"],
-          message: "レビュー担当者は問題作者と別人である必要があります",
+          path: ["provenance", "verification"],
+          message:
+            "レビュー済み・公開問題には自動検証と外部照合の証跡が必要です",
         });
-      }
-
-      if (!isIsoDateTime(question.provenance.reviewedAt)) {
-        context.addIssue({
-          code: "custom",
-          path: ["provenance", "reviewedAt"],
-          message: "レビュー日時はISO 8601形式の日時である必要があります",
-        });
+      } else {
+        const completed = new Set(verification.automatedChecks);
+        for (const required of requiredAutomatedChecks) {
+          if (!completed.has(required)) {
+            context.addIssue({
+              code: "custom",
+              path: ["provenance", "verification", "automatedChecks"],
+              message: `必須の自動検証 '${required}' が記録されていません`,
+            });
+          }
+        }
+        const sourceUrls = verification.externalChecks.map(
+          (check) => check.url,
+        );
+        if (new Set(sourceUrls).size !== sourceUrls.length) {
+          context.addIssue({
+            code: "custom",
+            path: ["provenance", "verification", "externalChecks"],
+            message: "外部照合は異なるURLの資料を2つ以上使用してください",
+          });
+        }
       }
     }
 
@@ -682,7 +727,7 @@ export const questionBankSchema = z
   .object({
     schemaVersion: z.literal(1),
     bankVersion: z.string().min(1),
-    rulesetVersion: z.literal("jp-riichi-4p-v1"),
+    rulesetVersion: z.literal(RULESET_VERSION),
     selectionAlgorithmVersion: z.literal(1),
     questions: z.array(questionSchema),
   })

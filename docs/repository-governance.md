@@ -13,7 +13,7 @@ GitHub remoteを作成したら、branch protectionでCIの`quality`と`e2e`を�
 ## レビュー
 
 - 通常コードは1名の承認を必須とする。
-- 点数、ルール、golden fixture、公開問題の変更はRule ownerと、作者とは別のRule reviewerを必須とする。
+- 点数、ルール、golden fixture、公開問題の変更はRule ownerの承認、自動検証、異なる外部資料2系統の照合を必須とする。Rule reviewerは境界事例・異議対応時に任意で依頼する。
 - 問題修正はコード変更と可能な限り分け、`revision`と監修証跡を更新する。
 - 依存更新はCI合格後にまとめてmergeする。
 

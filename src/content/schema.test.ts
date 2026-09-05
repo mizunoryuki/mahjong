@@ -68,8 +68,38 @@ function makeFullQuestion(
     },
     provenance: {
       author: "author-alice",
-      reviewer: "reviewer-bob",
-      reviewedAt: "2026-09-04T00:00:00Z",
+      reviewer: "automated-cross-check",
+      reviewedAt: "2026-09-05T08:00:00Z",
+      verification: {
+        method: "automated-cross-check" as const,
+        verifiedAt: "2026-09-05T08:00:00Z",
+        officialReference: "https://m-league.jp/about/" as const,
+        automatedChecks: [
+          "schema" as const,
+          "tile-count" as const,
+          "decomposition" as const,
+          "bonus" as const,
+          "fu" as const,
+          "payment" as const,
+          "options" as const,
+        ],
+        externalChecks: [
+          {
+            source: "雀カク",
+            url: "https://jankaku.com/tools/score",
+            checkedAt: "2026-09-05",
+            scope: "han-fu-payment" as const,
+            result: "matched" as const,
+          },
+          {
+            source: "雀天",
+            url: "https://janten.net/guide/score-table",
+            checkedAt: "2026-09-05",
+            scope: "han-fu-payment" as const,
+            result: "matched" as const,
+          },
+        ],
+      },
     },
   };
 }
@@ -267,7 +297,7 @@ describe("questionSchema", () => {
   });
 
   it.each(["reviewed", "published"] as const)(
-    "accepts a %s question with a full contract and independent review",
+    "accepts a %s question with a full contract and automated cross-check evidence",
     (status) => {
       expect(questionSchema.safeParse(makeFullQuestion(status)).success).toBe(
         true,
@@ -281,10 +311,10 @@ describe("questionSchema", () => {
       const candidate = {
         ...sampleQuestion,
         status,
-        provenance: {
-          author: "author-alice",
-          reviewer: "reviewer-bob",
-          reviewedAt: "2026-09-04T00:00:00Z",
+        hand: { ...sampleQuestion.hand, decomposition: undefined },
+        solution: {
+          ...sampleQuestion.solution,
+          basis: { kind: "hanFu" as const, han: 1, fu: 40 },
         },
       };
 
@@ -302,24 +332,26 @@ describe("questionSchema", () => {
   );
 
   it.each(["reviewed", "published"] as const)(
-    "rejects a %s question reviewed by its author",
+    "rejects a %s question without automated cross-check evidence",
     (status) => {
       const candidate = makeFullQuestion(status);
-      candidate.provenance.reviewer = " AUTHOR-ALICE ";
 
-      expect(questionSchema.safeParse(candidate).success).toBe(false);
+      expect(
+        questionSchema.safeParse({
+          ...candidate,
+          provenance: { ...candidate.provenance, verification: undefined },
+        }).success,
+      ).toBe(false);
     },
   );
 
-  it.each(["reviewed", "published"] as const)(
-    "rejects a %s question without an ISO review datetime",
-    (status) => {
-      const candidate = makeFullQuestion(status);
-      candidate.provenance.reviewedAt = "2026-09-04";
+  it("rejects duplicated external evidence URLs", () => {
+    const candidate = makeFullQuestion("published");
+    candidate.provenance.verification!.externalChecks[1]!.url =
+      candidate.provenance.verification!.externalChecks[0]!.url;
 
-      expect(questionSchema.safeParse(candidate).success).toBe(false);
-    },
-  );
+    expect(questionSchema.safeParse(candidate).success).toBe(false);
+  });
 
   it("turns domain validation exceptions into safeParse issues", () => {
     const fullQuestion = makeFullQuestion();
@@ -385,7 +417,7 @@ describe("questionBankSchema", () => {
       questionBankSchema.parse({
         schemaVersion: 1,
         bankVersion: "development-1",
-        rulesetVersion: "jp-riichi-4p-v1",
+        rulesetVersion: "mleague-2026-v1",
         selectionAlgorithmVersion: 1,
         questions: [sampleQuestion, sampleQuestion],
       }),

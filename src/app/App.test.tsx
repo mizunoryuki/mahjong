@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import { App } from "./App";
 
 describe("App", () => {
-  it("fails closed instead of showing unreviewed questions", () => {
+  it("fails closed when the verified question pool is insufficient", () => {
     render(
       <MemoryRouter>
         <App

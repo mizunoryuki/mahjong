@@ -325,6 +325,26 @@ describe("resolveBasicPoints with ScoringBasis", () => {
     expect(resolveBasicPoints(basis)).toBe(2000);
   });
 
+  it("applies M League kiriage mangan to a fully specified 4 han 30 fu basis", () => {
+    const basis: ScoringBasis = {
+      kind: "hanFu",
+      closed: true,
+      yaku: ["riichi"],
+      bonus: { dora: 3, uraDora: 0, redDora: 0 },
+      fu: {
+        kind: "standard",
+        components: [
+          { kind: "base", value: 20 },
+          { kind: "menzenRon", value: 10 },
+        ],
+        rawFu: 30,
+        roundedFu: 30,
+      },
+    };
+
+    expect(resolveBasicPoints(basis)).toBe(2000);
+  });
+
   it("resolves yakuman to 8000 basic points", () => {
     const basis: ScoringBasis = {
       kind: "yakuman",
@@ -449,30 +469,30 @@ describe("calculatePayment golden cases", () => {
       "ron",
       { kind: "ron", winner: "dealer", points: 7700 },
     ],
-    // 3 han 60 fu & 4 han 30 fu (non-kirage mangan: 7700 / 11600)
+    // 3 han 60 fu & 4 han 30 fu (M League kiriage mangan: 8000 / 12000)
     [
       { kind: "hanFu", han: 3, fu: 60 },
       "nonDealer",
       "ron",
-      { kind: "ron", winner: "nonDealer", points: 7700 },
+      { kind: "ron", winner: "nonDealer", points: 8000 },
     ],
     [
       { kind: "hanFu", han: 3, fu: 60 },
       "dealer",
       "ron",
-      { kind: "ron", winner: "dealer", points: 11600 },
+      { kind: "ron", winner: "dealer", points: 12000 },
     ],
     [
       { kind: "hanFu", han: 4, fu: 30 },
       "nonDealer",
       "ron",
-      { kind: "ron", winner: "nonDealer", points: 7700 },
+      { kind: "ron", winner: "nonDealer", points: 8000 },
     ],
     [
       { kind: "hanFu", han: 4, fu: 30 },
       "dealer",
       "ron",
-      { kind: "ron", winner: "dealer", points: 11600 },
+      { kind: "ron", winner: "dealer", points: 12000 },
     ],
     // 4 han 40 fu (mangan: 8000 / 12000)
     [

@@ -1,11 +1,12 @@
 import { questionSchema, type Question } from "./schema";
+import { mLeagueVerificationEvidence } from "./verificationEvidence";
 
 export const sampleQuestion1: Question = questionSchema.parse({
   schemaVersion: 1,
   id: "sample-001",
-  revision: 1,
-  status: "draft",
-  rulesetVersion: "jp-riichi-4p-v1",
+  revision: 2,
+  status: "published",
+  rulesetVersion: "mleague-2026-v1",
   difficulty: "basic",
   calibrationAxis: "fu",
   context: {
@@ -33,13 +34,40 @@ export const sampleQuestion1: Question = questionSchema.parse({
     ],
     melds: [],
     winningTile: "5z",
+    decomposition: {
+      kind: "standard",
+      pair: ["5z", "5z"],
+      groups: [
+        { kind: "sequence", tiles: ["1m", "2m", "3m"], openness: "closed" },
+        { kind: "sequence", tiles: ["4m", "5m", "6m"], openness: "closed" },
+        { kind: "sequence", tiles: ["7p", "8p", "9p"], openness: "closed" },
+        { kind: "sequence", tiles: ["2s", "3s", "4s"], openness: "closed" },
+      ],
+      winningPlacement: { kind: "pair", wait: "tanki" },
+    },
     doraIndicators: ["1z"],
     uraDoraIndicators: [],
     accessibleDescription:
       "一萬、二萬、三萬、四萬、五萬、六萬、七筒、八筒、九筒、二索、三索、四索、白。白でロン。",
   },
   solution: {
-    basis: { kind: "hanFu", han: 1, fu: 40 },
+    basis: {
+      kind: "hanFu",
+      closed: true,
+      yaku: ["riichi"],
+      bonus: { dora: 0, uraDora: 0, redDora: 0 },
+      fu: {
+        kind: "standard",
+        components: [
+          { kind: "base", value: 20 },
+          { kind: "menzenRon", value: 10 },
+          { kind: "pair", value: 2, reason: "white" },
+          { kind: "wait", value: 2, wait: "tanki" },
+        ],
+        rawFu: 34,
+        roundedFu: 40,
+      },
+    },
     payment: { kind: "ron", winner: "nonDealer", points: 1300 },
   },
   options: [
@@ -100,18 +128,19 @@ export const sampleQuestion1: Question = questionSchema.parse({
       "白は雀頭なので役牌にはならず、立直1飜です。門前ロンと単騎待ちを含む40符の子ロンとして1,300点です。",
   },
   provenance: {
-    author: "development-fixture",
-    reviewer: "unreviewed",
-    reviewedAt: "not-reviewed",
+    author: "content-maintainer",
+    reviewer: "automated-cross-check",
+    reviewedAt: "2026-09-05T08:00:00Z",
+    verification: mLeagueVerificationEvidence(),
   },
 });
 
 export const sampleQuestion2: Question = questionSchema.parse({
   schemaVersion: 1,
   id: "sample-002",
-  revision: 1,
-  status: "draft",
-  rulesetVersion: "jp-riichi-4p-v1",
+  revision: 2,
+  status: "published",
+  rulesetVersion: "mleague-2026-v1",
   difficulty: "basic",
   calibrationAxis: "han",
   context: {
@@ -122,30 +151,33 @@ export const sampleQuestion2: Question = questionSchema.parse({
     ippatsu: false,
   },
   hand: {
-    concealed: [
-      "2m",
-      "3m",
-      "4m",
-      "5m",
-      "6m",
-      "7m",
-      "3p",
-      "4p",
-      "5p",
-      "6s",
-      "7s",
-      "2s",
-      "2s",
-    ],
-    melds: [],
+    concealed: ["5m", "6m", "7m", "3p", "4p", "5p", "6s", "7s", "2s", "2s"],
+    melds: [{ kind: "chi", tiles: ["2m", "3m", "4m"], calledIndex: 0 }],
     winningTile: "8s",
+    decomposition: {
+      kind: "standard",
+      pair: ["2s", "2s"],
+      groups: [
+        { kind: "sequence", tiles: ["2m", "3m", "4m"], openness: "open" },
+        { kind: "sequence", tiles: ["5m", "6m", "7m"], openness: "closed" },
+        { kind: "sequence", tiles: ["3p", "4p", "5p"], openness: "closed" },
+        { kind: "sequence", tiles: ["6s", "7s", "8s"], openness: "closed" },
+      ],
+      winningPlacement: { kind: "group", groupIndex: 3, wait: "ryanmen" },
+    },
     doraIndicators: ["1z"],
     uraDoraIndicators: [],
     accessibleDescription:
-      "二萬、三萬、四萬、五萬、六萬、七萬、三筒、四筒、五筒、六索、七索、二索、二索。八索でロン。",
+      "二萬、三萬、四萬をチー。五萬、六萬、七萬、三筒、四筒、五筒、六索、七索、二索、二索。八索でロン。",
   },
   solution: {
-    basis: { kind: "hanFu", han: 1, fu: 30 },
+    basis: {
+      kind: "hanFu",
+      closed: false,
+      yaku: ["tanyao"],
+      bonus: { dora: 0, uraDora: 0, redDora: 0 },
+      fu: { kind: "openNoFu", fixedFu: 30 },
+    },
     payment: { kind: "ron", winner: "nonDealer", points: 1000 },
   },
   options: [
@@ -205,18 +237,19 @@ export const sampleQuestion2: Question = questionSchema.parse({
     summary: "断么九（タンヤオ）のみの1飜30符、子のロン和了で1,000点です。",
   },
   provenance: {
-    author: "development-fixture",
-    reviewer: "unreviewed",
-    reviewedAt: "not-reviewed",
+    author: "content-maintainer",
+    reviewer: "automated-cross-check",
+    reviewedAt: "2026-09-05T08:00:00Z",
+    verification: mLeagueVerificationEvidence(),
   },
 });
 
 export const sampleQuestion3: Question = questionSchema.parse({
   schemaVersion: 1,
   id: "sample-003",
-  revision: 1,
-  status: "draft",
-  rulesetVersion: "jp-riichi-4p-v1",
+  revision: 2,
+  status: "published",
+  rulesetVersion: "mleague-2026-v1",
   difficulty: "standard",
   calibrationAxis: "payout",
   context: {
@@ -244,13 +277,46 @@ export const sampleQuestion3: Question = questionSchema.parse({
     ],
     melds: [],
     winningTile: "3s",
+    decomposition: {
+      kind: "standard",
+      pair: ["3s", "3s"],
+      groups: [
+        { kind: "sequence", tiles: ["1m", "2m", "3m"], openness: "closed" },
+        { kind: "sequence", tiles: ["4m", "5m", "6m"], openness: "closed" },
+        { kind: "sequence", tiles: ["7p", "8p", "9p"], openness: "closed" },
+        { kind: "triplet", tiles: ["5z", "5z", "5z"], openness: "closed" },
+      ],
+      winningPlacement: { kind: "pair", wait: "tanki" },
+    },
     doraIndicators: ["1z"],
     uraDoraIndicators: [],
     accessibleDescription:
       "一萬、二萬、三萬、四萬、五萬、六萬、七筒、八筒、九筒、白、白、白、三索。三索でロン。",
   },
   solution: {
-    basis: { kind: "hanFu", han: 2, fu: 40 },
+    basis: {
+      kind: "hanFu",
+      closed: true,
+      yaku: ["riichi", "yakuhaiWhite"],
+      bonus: { dora: 0, uraDora: 0, redDora: 0 },
+      fu: {
+        kind: "standard",
+        components: [
+          { kind: "base", value: 20 },
+          { kind: "menzenRon", value: 10 },
+          {
+            kind: "meld",
+            value: 8,
+            meld: "triplet",
+            openness: "closed",
+            tileClass: "terminalOrHonor",
+          },
+          { kind: "wait", value: 2, wait: "tanki" },
+        ],
+        rawFu: 40,
+        roundedFu: 40,
+      },
+    },
     payment: { kind: "ron", winner: "dealer", points: 3900 },
   },
   options: [
@@ -310,18 +376,19 @@ export const sampleQuestion3: Question = questionSchema.parse({
     summary: "立直・役牌白の2飜40符、親のロン和了で3,900点です。",
   },
   provenance: {
-    author: "development-fixture",
-    reviewer: "unreviewed",
-    reviewedAt: "not-reviewed",
+    author: "content-maintainer",
+    reviewer: "automated-cross-check",
+    reviewedAt: "2026-09-05T08:00:00Z",
+    verification: mLeagueVerificationEvidence(),
   },
 });
 
 export const sampleQuestion4: Question = questionSchema.parse({
   schemaVersion: 1,
   id: "sample-004",
-  revision: 1,
-  status: "draft",
-  rulesetVersion: "jp-riichi-4p-v1",
+  revision: 2,
+  status: "published",
+  rulesetVersion: "mleague-2026-v1",
   difficulty: "standard",
   calibrationAxis: "fu",
   context: {
@@ -333,9 +400,9 @@ export const sampleQuestion4: Question = questionSchema.parse({
   },
   hand: {
     concealed: [
+      "1m",
       "2m",
       "3m",
-      "4m",
       "5m",
       "6m",
       "7m",
@@ -349,13 +416,38 @@ export const sampleQuestion4: Question = questionSchema.parse({
     ],
     melds: [],
     winningTile: "4s",
+    decomposition: {
+      kind: "standard",
+      pair: ["8s", "8s"],
+      groups: [
+        { kind: "sequence", tiles: ["1m", "2m", "3m"], openness: "closed" },
+        { kind: "sequence", tiles: ["5m", "6m", "7m"], openness: "closed" },
+        { kind: "sequence", tiles: ["3p", "4p", "5p"], openness: "closed" },
+        { kind: "sequence", tiles: ["2s", "3s", "4s"], openness: "closed" },
+      ],
+      winningPlacement: { kind: "group", groupIndex: 3, wait: "ryanmen" },
+    },
     doraIndicators: ["1z"],
     uraDoraIndicators: [],
     accessibleDescription:
-      "二萬、三萬、四萬、五萬、六萬、七萬、三筒、四筒、五筒、二索、三索、八索、八索。四索でロン。",
+      "一萬、二萬、三萬、五萬、六萬、七萬、三筒、四筒、五筒、二索、三索、八索、八索。四索でロン。",
   },
   solution: {
-    basis: { kind: "hanFu", han: 2, fu: 30 },
+    basis: {
+      kind: "hanFu",
+      closed: true,
+      yaku: ["riichi", "pinfu"],
+      bonus: { dora: 0, uraDora: 0, redDora: 0 },
+      fu: {
+        kind: "standard",
+        components: [
+          { kind: "base", value: 20 },
+          { kind: "menzenRon", value: 10 },
+        ],
+        rawFu: 30,
+        roundedFu: 30,
+      },
+    },
     payment: { kind: "ron", winner: "dealer", points: 2900 },
   },
   options: [
@@ -412,21 +504,22 @@ export const sampleQuestion4: Question = questionSchema.parse({
   },
   reviewGroup: ["development-group-b"],
   explanation: {
-    summary: "立直・タンヤオの2飜30符、親のロン和了で2,900点です。",
+    summary: "立直・平和の2飜30符、親のロン和了で2,900点です。",
   },
   provenance: {
-    author: "development-fixture",
-    reviewer: "unreviewed",
-    reviewedAt: "not-reviewed",
+    author: "content-maintainer",
+    reviewer: "automated-cross-check",
+    reviewedAt: "2026-09-05T08:00:00Z",
+    verification: mLeagueVerificationEvidence(),
   },
 });
 
 export const sampleQuestion5: Question = questionSchema.parse({
   schemaVersion: 1,
   id: "sample-005",
-  revision: 1,
-  status: "draft",
-  rulesetVersion: "jp-riichi-4p-v1",
+  revision: 2,
+  status: "published",
+  rulesetVersion: "mleague-2026-v1",
   difficulty: "advanced",
   calibrationAxis: "payout",
   context: {
@@ -454,13 +547,46 @@ export const sampleQuestion5: Question = questionSchema.parse({
     ],
     melds: [],
     winningTile: "2s",
+    decomposition: {
+      kind: "standard",
+      pair: ["2s", "2s"],
+      groups: [
+        { kind: "sequence", tiles: ["1m", "2m", "3m"], openness: "closed" },
+        { kind: "sequence", tiles: ["4m", "5m", "6m"], openness: "closed" },
+        { kind: "sequence", tiles: ["7p", "8p", "9p"], openness: "closed" },
+        { kind: "triplet", tiles: ["5z", "5z", "5z"], openness: "closed" },
+      ],
+      winningPlacement: { kind: "pair", wait: "tanki" },
+    },
     doraIndicators: ["1z"],
     uraDoraIndicators: [],
     accessibleDescription:
       "一萬、二萬、三萬、四萬、五萬、六萬、七筒、八筒、九筒、白、白、白、二索。二索でツモ。",
   },
   solution: {
-    basis: { kind: "hanFu", han: 3, fu: 40 },
+    basis: {
+      kind: "hanFu",
+      closed: true,
+      yaku: ["riichi", "menzenTsumo", "yakuhaiWhite"],
+      bonus: { dora: 0, uraDora: 0, redDora: 0 },
+      fu: {
+        kind: "standard",
+        components: [
+          { kind: "base", value: 20 },
+          { kind: "tsumo", value: 2 },
+          {
+            kind: "meld",
+            value: 8,
+            meld: "triplet",
+            openness: "closed",
+            tileClass: "terminalOrHonor",
+          },
+          { kind: "wait", value: 2, wait: "tanki" },
+        ],
+        rawFu: 32,
+        roundedFu: 40,
+      },
+    },
     payment: {
       kind: "nonDealerTsumo",
       winner: "nonDealer",
@@ -546,9 +672,10 @@ export const sampleQuestion5: Question = questionSchema.parse({
       "立直・門前清自摸和・役牌白の3飜40符、子のツモ和了で子1,300点・親2,600点です。",
   },
   provenance: {
-    author: "development-fixture",
-    reviewer: "unreviewed",
-    reviewedAt: "not-reviewed",
+    author: "content-maintainer",
+    reviewer: "automated-cross-check",
+    reviewedAt: "2026-09-05T08:00:00Z",
+    verification: mLeagueVerificationEvidence(),
   },
 });
 

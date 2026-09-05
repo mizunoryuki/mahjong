@@ -17,6 +17,7 @@ import {
   describeHand,
   meldLabels,
 } from "../domain/questionPresentation";
+import { reportQuestionUrl } from "../domain/questionReport";
 import {
   createQuizSession,
   isQuizStateConsistent,
@@ -535,6 +536,16 @@ export function QuizPage({
           >
             {currentSlot === 5 ? "結果を見る" : "次の問題へ"}
           </button>
+          <p>
+            <a
+              className="text-button"
+              href={reportQuestionUrl(currentQuestion)}
+              target="_blank"
+              rel="noreferrer"
+            >
+              この問題の誤りを報告する
+            </a>
+          </p>
         </section>
       ) : null}
     </section>

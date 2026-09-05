@@ -5,16 +5,16 @@ import type { Question, QuestionBank } from "../content/schema";
 import { validateQuestion, validateQuestionBank } from "./questionValidator";
 
 describe("questionValidator", () => {
-  it("validates sampleQuestion in draft status successfully", () => {
+  it("validates the published sample question successfully", () => {
     const errors = validateQuestion(sampleQuestion);
     expect(errors).toEqual([]);
   });
 
-  it("validates a draft question bank successfully", () => {
+  it("validates a published question bank successfully", () => {
     const bank: QuestionBank = {
       schemaVersion: 1,
       bankVersion: "test-bank",
-      rulesetVersion: "jp-riichi-4p-v1",
+      rulesetVersion: "mleague-2026-v1",
       selectionAlgorithmVersion: 1,
       questions: [sampleQuestion],
     };
@@ -22,7 +22,7 @@ describe("questionValidator", () => {
     const result = validateQuestionBank(bank);
     expect(result.valid).toBe(true);
     expect(result.totalQuestions).toBe(1);
-    expect(result.statusCounts.draft).toBe(1);
+    expect(result.statusCounts.published).toBe(1);
     expect(result.errors).toEqual([]);
   });
 
@@ -47,13 +47,51 @@ describe("questionValidator", () => {
       status: "published",
       provenance: {
         author: "author-alice",
-        reviewer: "reviewer-bob",
-        reviewedAt: "2026-09-04T00:00:00Z",
+        reviewer: "automated-cross-check",
+        reviewedAt: "2026-09-05T08:00:00Z",
+        verification: {
+          method: "automated-cross-check",
+          verifiedAt: "2026-09-05T08:00:00Z",
+          officialReference: "https://m-league.jp/about/",
+          automatedChecks: [
+            "schema",
+            "tile-count",
+            "decomposition",
+            "bonus",
+            "fu",
+            "payment",
+            "options",
+          ],
+          externalChecks: [
+            {
+              source: "雀カク",
+              url: "https://jankaku.com/tools/score",
+              checkedAt: "2026-09-05",
+              scope: "han-fu-payment",
+              result: "matched",
+            },
+            {
+              source: "雀天",
+              url: "https://janten.net/guide/score-table",
+              checkedAt: "2026-09-05",
+              scope: "han-fu-payment",
+              result: "matched",
+            },
+          ],
+        },
       },
     };
 
     it("rejects published questions that still use the draft-only scoring shape", () => {
-      const errors = validateQuestion(publishedBase);
+      const invalid: Question = {
+        ...publishedBase,
+        hand: { ...publishedBase.hand, decomposition: undefined },
+        solution: {
+          ...publishedBase.solution,
+          basis: { kind: "hanFu", han: 1, fu: 40 },
+        },
+      };
+      const errors = validateQuestion(invalid);
       expect(errors).toEqual(
         expect.arrayContaining([
           expect.objectContaining({ field: "hand.decomposition" }),
@@ -79,54 +117,19 @@ describe("questionValidator", () => {
       );
     });
 
-    it("rejects published question where reviewer is the author", () => {
+    it("rejects published question without automated verification evidence", () => {
       const invalid: Question = {
         ...publishedBase,
         provenance: {
           ...publishedBase.provenance,
-          author: "same-person",
-          reviewer: "same-person",
+          verification: undefined,
         },
       };
 
       const errors = validateQuestion(invalid);
       expect(errors).toContainEqual(
         expect.objectContaining({
-          field: "provenance.reviewer",
-        }),
-      );
-    });
-
-    it("rejects published question with unreviewed reviewer", () => {
-      const invalid: Question = {
-        ...publishedBase,
-        provenance: {
-          ...publishedBase.provenance,
-          reviewer: "unreviewed",
-        },
-      };
-
-      const errors = validateQuestion(invalid);
-      expect(errors).toContainEqual(
-        expect.objectContaining({
-          field: "provenance.reviewer",
-        }),
-      );
-    });
-
-    it("rejects published question with invalid date", () => {
-      const invalid: Question = {
-        ...publishedBase,
-        provenance: {
-          ...publishedBase.provenance,
-          reviewedAt: "invalid-date",
-        },
-      };
-
-      const errors = validateQuestion(invalid);
-      expect(errors).toContainEqual(
-        expect.objectContaining({
-          field: "provenance.reviewedAt",
+          field: "provenance.verification",
         }),
       );
     });
@@ -148,7 +151,7 @@ describe("questionValidator", () => {
       const bank: QuestionBank = {
         schemaVersion: 1,
         bankVersion: "test-bank",
-        rulesetVersion: "jp-riichi-4p-v1",
+        rulesetVersion: "mleague-2026-v1",
         selectionAlgorithmVersion: 1,
         questions: [questionA, questionB],
       };
@@ -178,7 +181,7 @@ describe("questionValidator", () => {
       const bank: QuestionBank = {
         schemaVersion: 1,
         bankVersion: "test-bank",
-        rulesetVersion: "jp-riichi-4p-v1",
+        rulesetVersion: "mleague-2026-v1",
         selectionAlgorithmVersion: 1,
         questions: [questionA, questionB],
       };
