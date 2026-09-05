@@ -18,7 +18,7 @@
 
 最初の到達点は、15〜20問を使った診断プロトタイプです。対象利用者テストに合格した後で、64問の公開βへ展開します。
 
-React、TypeScript、Viteで実装し、Cloudflare Workers Static Assetsへ配信します。`main`にはMilestone 0と点数支払いの基盤、未マージのPR #20には問題検証と5問セッションのdomain基盤があります。
+React、TypeScript、Viteで実装し、Cloudflare Workers Static Assetsへ配信します。`main`では5問セッション、誤答時の飜・符プローブ、適応出題、診断結果、端末内保存まで動作します。公開用の問題は人間の独立監修後にだけ有効化します。
 
 詳細な仕様、状態遷移、問題データ、診断ロジック、品質基準は[プロダクト・技術設計書](docs/product-design.md)を参照してください。
 
@@ -38,6 +38,7 @@ npm run dev
 ```sh
 npm run check
 npm run test:e2e
+npm run test:e2e:production
 npm run deploy:dry-run
 ```
 

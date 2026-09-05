@@ -1,6 +1,6 @@
 # 開発引き継ぎ書
 
-最終更新: 2026-09-04
+最終更新: 2026-09-05
 
 この文書は、会話履歴を持たない開発者やAIが、現在地を誤認せずに作業を再開するための入口である。詳細仕様は[プロダクト・技術設計書](product-design.md)、実装順は[本番実装バックログ](production-backlog.md)を参照する。
 
@@ -18,12 +18,13 @@
 - Repository: <https://github.com/mizunoryuki/mahjong>
 - Production: <https://kono-te-nanten.kt0442193.workers.dev/>
 - Production branch: `main`
+- 作業ブランチ: `feature/PROD-004-release-question-boundary`（リリース境界の補強、PR準備中）
 - 直近マージ済みPR:
   - [#24 feat(domain): 誤答プローブ・診断決定表・適応出題の実装 (PROD-009, PROD-011)](https://github.com/mizunoryuki/mahjong/pull/24)
   - [#23 feat(ui): 5問セッションUIと端末内保存・復元の実装 (PROD-005, PROD-006, PROD-008)](https://github.com/mizunoryuki/mahjong/pull/23)
   - [#21 feat(domain): 点数計算契約・問題スキーマ・問題検証CLIの完成 (PROD-002, PROD-003, PROD-004)](https://github.com/mizunoryuki/mahjong/pull/21)
   - [#20 本番向け問題検証と5問セッションの基盤を追加](https://github.com/mizunoryuki/mahjong/pull/20)
-- 本番URL稼働状況: `main` の全コミットがCloudflare Workers Static Assetsへ正常デプロイ完了（`/`, `/rules`, `/privacy`, `/settings`, `/about` のHTTP 200疎通確認済み）。
+- 本番URL稼働状況: `main` の全コミットがCloudflare Workers Static Assetsへデプロイ済み。作業ブランチをmergeするまでは仮問題が表示されるため、監修済み公開版とは扱わない。
 
 作業開始時の確認コマンド:
 
@@ -59,8 +60,19 @@ npm run test:e2e -- --project=chromium
   - 診断決定表（`clear | candidate | repaired | confirmed | unknown`）による客観的・前向きな日本語診断結果カード
   - 決定表全行テストおよび1,000 seed網羅シミュレーションによる不変条件検査（不正confirmed・例外・非決定性ゼロ件）
 - **品質保証・自動テスト**:
-  - Vitest 単体・結合テスト（204 tests 全件パス）
+  - Vitest 単体・結合テスト（240 tests 全件パス）
   - Playwright E2E（Chromium / Mobile Chrome 全件パス）
+
+### 作業ブランチで実装済み（merge待ち）
+
+- development / production / alpha / beta profileを持つ実問題バンク検証CLI。正常・検証エラー・利用方法エラーをexit code 0 / 1 / 2で区別する。
+- CIはdevelopment、CDはproduction profileを明示して検証する。
+- 本番は`published`問題だけを読み込み、0件なら「問題を準備しています」と表示する。公開開始後にα条件の15問未満ならデプロイ検証を失敗させる。
+- `reviewed` / `published`問題では、完全な点数内訳、作者と異なる監修者、ISO形式の監修日時を必須にする。
+- 保存状態versionをv2へ更新。bank / ruleset / selection algorithm / 問題revisionのfingerprintが一致しない状態を破棄する。
+- 保存された正誤、プローブ観察、診断集計を正規問題から再計算し、不整合な状態を復元しない。
+- 再読み込み後も操作IDが衝突しないよう、遷移IDを`crypto.randomUUID()`で生成する。
+- production build専用E2Eで、未監修の下書き問題が出題されないことを確認する。
 
 ## 4. まだ実装されていないもの
 
@@ -71,9 +83,9 @@ npm run test:e2e -- --project=chromium
 | [#6 PROD-001](https://github.com/mizunoryuki/mahjong/issues/6)   | 未着手・外部blocker                        | Rule owner、作者と別人のRule reviewer、承認方法、緊急連絡先を決める                          |
 | [#7 PROD-002](https://github.com/mizunoryuki/mahjong/issues/7)   | 【完了・マージ済み (PR #21)】              | 手牌分解、役一覧、符内訳、Question契約・バンクローダー・日本語バリデーションを完了           |
 | [#8 PROD-003](https://github.com/mizunoryuki/mahjong/issues/8)   | 【完了・マージ済み (PR #21)】              | 牌姿からの役・飜・符・ドラ導出契約、満貫以上・役満計算、公式表フィクスチャ全142テスト完了    |
-| [#9 PROD-004](https://github.com/mizunoryuki/mahjong/issues/9)   | 【完了・マージ済み (PR #21)】              | `npm run validate:questions` CLIを実装し、CIに統合完了                                       |
-| [#10 PROD-005](https://github.com/mizunoryuki/mahjong/issues/10) | 【完了・マージ済み (PR #23)】              | 5問セッション状態機械・決定論的選定・answering/feedback/summary遷移を接続完了                |
-| [#11 PROD-006](https://github.com/mizunoryuki/mahjong/issues/11) | 【完了・マージ済み (PR #23)】              | `sessionStorage` 24時間保持・復元・破損耐性モジュールを実装しE2E検証完了                     |
+| [#9 PROD-004](https://github.com/mizunoryuki/mahjong/issues/9)   | 完了、作業ブランチで補強中                 | 実CLI、profile別検証、安定したエラー順とexit code、CI/CD連携を追加                           |
+| [#10 PROD-005](https://github.com/mizunoryuki/mahjong/issues/10) | 完了、作業ブランチで補強中                 | 本番問題バンク境界と、正規問題からのセッション派生値再検証を追加                             |
+| [#11 PROD-006](https://github.com/mizunoryuki/mahjong/issues/11) | 完了、作業ブランチで補強中                 | bank fingerprint、厳格な構造検査、改変・旧revisionの安全な破棄を追加                         |
 | [#12 PROD-007](https://github.com/mizunoryuki/mahjong/issues/12) | 一部実装済み（表示契約・アクセシビリティ） | 固定commitの牌SVG差し替え、ライセンス通知、実機でのスクリーンリーダー最終確認                |
 | [#13 PROD-008](https://github.com/mizunoryuki/mahjong/issues/13) | 【完了・マージ済み (PR #23)】              | 1問目即時表示、4択、正誤、内訳、次問、5問結果、補助ページ復帰E2Eを完了                       |
 | [#14 PROD-009](https://github.com/mizunoryuki/mahjong/issues/14) | 【完了・マージ済み (PR #24)】              | 飜・符プローブUI、5結果診断決定表、4〜5問目の適応選定を実装・マージ完了                      |
@@ -91,13 +103,15 @@ npm run test:e2e -- --project=chromium
 
 ### 現在のフォーカスと次のステップ
 
-1. **PROD-007 牌SVGとアクセシブル表示の仕上げ**:
+1. **現在のリリース境界補強PRをmerge**:
+   - CI、production専用E2Eを通し、本番が準備中表示へfail-closedすることを確認する。
+2. **PROD-007 牌SVGとアクセシブル表示の仕上げ**:
    - 固定commitのオープンライセンス牌SVGアセット（例: FluffyStuff riichi-mahjong-tiles 等）の選定と取り込み。
    - ライセンス証跡・クレジット表示（`/about` または `/rules`）。
-2. **PROD-001 & PROD-010（Phase 3: 監修体制とα用問題の二重監修）**:
+3. **PROD-001 & PROD-010（Phase 3: 監修体制とα用問題の二重監修）**:
    - Rule owner / reviewer の確定（人間による承認体制）。
    - α用15〜20問の二重監修とGate A〜E通過の検証（`npm run validate:questions`）。
-3. **PROD-012 対象利用者テスト**:
+4. **PROD-012 対象利用者テスト**:
    - 5〜8人によるプロトタイプ評価とゲート判定。
 
 ## 6. 開発体制
@@ -136,6 +150,7 @@ AIは、実装、テスト生成、schema検査、差分レビュー、ドキュ
 ```sh
 npm run check
 npm run test:e2e -- --project=chromium
+npm run test:e2e:production
 npm run deploy:dry-run
 ```
 
