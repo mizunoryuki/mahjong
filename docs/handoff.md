@@ -18,7 +18,7 @@
 - Repository: <https://github.com/mizunoryuki/mahjong>
 - Production: <https://kono-te-nanten.kt0442193.workers.dev/>
 - Production branch: `main`
-- 作業ブランチ: `feature/PROD-004-release-question-boundary`（リリース境界の補強、PR準備中）
+- 作業ブランチ: `feature/PROD-004-release-question-boundary`（リリース境界の補強、[PR #26](https://github.com/mizunoryuki/mahjong/pull/26)でレビュー中）
 - 直近マージ済みPR:
   - [#24 feat(domain): 誤答プローブ・診断決定表・適応出題の実装 (PROD-009, PROD-011)](https://github.com/mizunoryuki/mahjong/pull/24)
   - [#23 feat(ui): 5問セッションUIと端末内保存・復元の実装 (PROD-005, PROD-006, PROD-008)](https://github.com/mizunoryuki/mahjong/pull/23)
