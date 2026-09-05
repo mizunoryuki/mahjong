@@ -10,7 +10,7 @@ describe("loadQuestionBank", () => {
     if (result.success) expect(result.value.playableQuestions).toHaveLength(15);
   });
 
-  it("includes the M League boundary drafts without publishing them", () => {
+  it("publishes the verified M League boundary questions", () => {
     const result = loadQuestionBank(defaultQuestionBankSource, "development");
     expect(result.success).toBe(true);
     if (!result.success) return;
@@ -20,7 +20,7 @@ describe("loadQuestionBank", () => {
       result.value.playableQuestions.find(
         (question) => question.id === "alpha-kiriage-ron-001",
       )?.status,
-    ).toBe("draft");
+    ).toBe("published");
   });
 
   it("records two independent external payment checks for every candidate", () => {
@@ -65,21 +65,15 @@ describe("loadQuestionBank", () => {
 
   it("uses only published questions for release profiles", () => {
     const result = loadQuestionBank(defaultQuestionBankSource, "alpha");
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.errors).toContainEqual(
-        expect.objectContaining({
-          message: expect.stringContaining("現在0問"),
-        }),
-      );
-    }
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.value.playableQuestions).toHaveLength(15);
   });
 
-  it("allows the production shell to fail closed with zero playable questions", () => {
+  it("loads all verified questions for production", () => {
     const result = loadQuestionBank(defaultQuestionBankSource, "production");
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.value.playableQuestions).toEqual([]);
+      expect(result.value.playableQuestions).toHaveLength(15);
     }
   });
 

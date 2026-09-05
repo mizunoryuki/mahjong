@@ -1,4 +1,4 @@
-import { alphaDraftQuestions } from "./alphaDraftQuestions";
+import { alphaQuestions } from "./alphaQuestions";
 import { sampleQuestions } from "./sampleQuestions";
 import { RULESET_VERSION } from "./schema";
 import type { Question, QuestionBank } from "./schema";
@@ -9,10 +9,10 @@ import {
 
 export const defaultQuestionBankSource = {
   schemaVersion: 1,
-  bankVersion: "alpha-0.3.0",
+  bankVersion: "alpha-1.0.0",
   rulesetVersion: RULESET_VERSION,
   selectionAlgorithmVersion: 1,
-  questions: [...sampleQuestions, ...alphaDraftQuestions],
+  questions: [...sampleQuestions, ...alphaQuestions],
 } as const;
 
 /**
@@ -44,7 +44,7 @@ export function createQuestionBank(
 }
 
 /**
- * 開発・MVP用のデフォルト問題バンク（監修前draft 15問）
+ * α本番用の検証・外部照合済みデフォルト問題バンク（15問）
  */
 export const defaultQuestionBank: QuestionBank = createQuestionBank({
   bankVersion: defaultQuestionBankSource.bankVersion,

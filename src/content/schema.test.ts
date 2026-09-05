@@ -311,10 +311,10 @@ describe("questionSchema", () => {
       const candidate = {
         ...sampleQuestion,
         status,
-        provenance: {
-          author: "author-alice",
-          reviewer: "reviewer-bob",
-          reviewedAt: "2026-09-04T00:00:00Z",
+        hand: { ...sampleQuestion.hand, decomposition: undefined },
+        solution: {
+          ...sampleQuestion.solution,
+          basis: { kind: "hanFu" as const, han: 1, fu: 40 },
         },
       };
 

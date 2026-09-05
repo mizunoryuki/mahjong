@@ -17,7 +17,7 @@ function captureIo() {
 }
 
 describe("runQuestionValidation", () => {
-  it("accepts the fifteen draft fixtures in development", () => {
+  it("accepts the fifteen published questions in development", () => {
     const capture = captureIo();
     expect(
       runQuestionValidation([], defaultQuestionBankSource, capture.io),
@@ -43,17 +43,20 @@ describe("runQuestionValidation", () => {
 
   it("returns 1 for an alpha bank with no published questions", () => {
     const capture = captureIo();
+    const draftOnly = {
+      ...defaultQuestionBankSource,
+      questions: defaultQuestionBankSource.questions.map((question) => ({
+        ...question,
+        status: "draft",
+      })),
+    };
     expect(
-      runQuestionValidation(
-        ["--profile=alpha"],
-        defaultQuestionBankSource,
-        capture.io,
-      ),
+      runQuestionValidation(["--profile=alpha"], draftOnly, capture.io),
     ).toBe(1);
     expect(capture.error.join("\n")).toContain("published問題が15問以上必要");
   });
 
-  it("accepts an empty published pool only for the safe production shell", () => {
+  it("accepts all verified questions for production", () => {
     const capture = captureIo();
     expect(
       runQuestionValidation(
@@ -62,7 +65,7 @@ describe("runQuestionValidation", () => {
         capture.io,
       ),
     ).toBe(0);
-    expect(capture.out.join("\n")).toContain("出題対象0問");
+    expect(capture.out.join("\n")).toContain("出題対象15問");
   });
 
   it("returns 2 for invalid CLI usage", () => {
@@ -100,15 +103,15 @@ describe("runQuestionValidation", () => {
     });
     expect(valid.status).toBe(0);
 
-    const invalid = spawnSync(
+    const alpha = spawnSync(
       process.execPath,
       ["--import", "tsx", script, "--profile=alpha"],
       {
         encoding: "utf8",
       },
     );
-    expect(invalid.status).toBe(1);
-    expect(invalid.stderr).not.toContain("at ");
+    expect(alpha.status).toBe(0);
+    expect(alpha.stderr).not.toContain("at ");
 
     const usage = spawnSync(
       process.execPath,

@@ -5,12 +5,12 @@ import type { Question, QuestionBank } from "../content/schema";
 import { validateQuestion, validateQuestionBank } from "./questionValidator";
 
 describe("questionValidator", () => {
-  it("validates sampleQuestion in draft status successfully", () => {
+  it("validates the published sample question successfully", () => {
     const errors = validateQuestion(sampleQuestion);
     expect(errors).toEqual([]);
   });
 
-  it("validates a draft question bank successfully", () => {
+  it("validates a published question bank successfully", () => {
     const bank: QuestionBank = {
       schemaVersion: 1,
       bankVersion: "test-bank",
@@ -22,7 +22,7 @@ describe("questionValidator", () => {
     const result = validateQuestionBank(bank);
     expect(result.valid).toBe(true);
     expect(result.totalQuestions).toBe(1);
-    expect(result.statusCounts.draft).toBe(1);
+    expect(result.statusCounts.published).toBe(1);
     expect(result.errors).toEqual([]);
   });
 
@@ -83,7 +83,15 @@ describe("questionValidator", () => {
     };
 
     it("rejects published questions that still use the draft-only scoring shape", () => {
-      const errors = validateQuestion(publishedBase);
+      const invalid: Question = {
+        ...publishedBase,
+        hand: { ...publishedBase.hand, decomposition: undefined },
+        solution: {
+          ...publishedBase.solution,
+          basis: { kind: "hanFu", han: 1, fu: 40 },
+        },
+      };
+      const errors = validateQuestion(invalid);
       expect(errors).toEqual(
         expect.arrayContaining([
           expect.objectContaining({ field: "hand.decomposition" }),

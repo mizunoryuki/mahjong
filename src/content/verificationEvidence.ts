@@ -6,6 +6,9 @@ export function mLeagueVerificationEvidence() {
     automatedChecks: [
       "schema" as const,
       "tile-count" as const,
+      "decomposition" as const,
+      "bonus" as const,
+      "fu" as const,
       "payment" as const,
       "options" as const,
     ],

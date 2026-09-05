@@ -16,7 +16,7 @@ describe("QuizPage", () => {
     const url = new URL(reportQuestionUrl(sampleQuestions[0]));
     expect(url.hostname).toBe("github.com");
     expect(url.searchParams.get("title")).toContain("sample-001");
-    expect(url.searchParams.get("body")).toContain("revision: 1");
+    expect(url.searchParams.get("body")).toContain("revision: 2");
     expect(url.searchParams.get("body")).toContain("mleague-2026-v1");
   });
 
