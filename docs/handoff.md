@@ -18,7 +18,7 @@
 - Repository: <https://github.com/mizunoryuki/mahjong>
 - Production: <https://kono-te-nanten.kt0442193.workers.dev/>
 - Production branch: `main`
-- 作業ブランチ: `feature/PROD-004-release-question-boundary`（リリース境界の補強、[PR #26](https://github.com/mizunoryuki/mahjong/pull/26)でレビュー中）
+- 作業ブランチ: `feature/PROD-010-mleague-alpha-drafts`（PR #26のリリース境界補強を土台にしたstacked branch）
 - 直近マージ済みPR:
   - [#24 feat(domain): 誤答プローブ・診断決定表・適応出題の実装 (PROD-009, PROD-011)](https://github.com/mizunoryuki/mahjong/pull/24)
   - [#23 feat(ui): 5問セッションUIと端末内保存・復元の実装 (PROD-005, PROD-006, PROD-008)](https://github.com/mizunoryuki/mahjong/pull/23)
@@ -46,7 +46,7 @@ npm run test:e2e -- --project=chromium
 - **点数計算契約（PROD-003）**:
   - 通常役30種・役満8種のカタログ、食い下がり判定、役置換・複合判定
   - 符計算（底符・ツモ/ロン・待ち・刻子/槓子・七対子固定25符・平和20/30符）
-  - ドラ・裏ドラ・赤ドラ導出、満貫〜役満支払い計算（公式点数表準拠142テスト完備）
+  - ドラ・裏ドラ・赤ドラ導出、満貫〜役満支払い計算
 - **問題スキーマ・検証CLI（PROD-002, PROD-004）**:
   - `Question` / `QuestionBank` のZodスキーマ、手牌分解（標準形・七対子）、日本語エラーメッセージ
   - `npm run validate:questions`: 牌枚数・計算・選択肢・類題・監修証跡の厳格検査CLI（CI必須ジョブ）
@@ -74,6 +74,9 @@ npm run test:e2e -- --project=chromium
 - プローブの途中選択を保存し、問題ごとに許可された飜・符候補以外は復元・送信しない。
 - 再読み込み後も操作IDが衝突しないよう、遷移IDを`crypto.randomUUID()`で生成する。
 - production build専用E2Eで、未監修の下書き問題が出題されないことを確認する。
+- ルールセットを`mleague-2026-v1`へ固定し、Mリーグ公式戦ルールの切り上げ満貫（3翻60符・4翻30符）と連風牌雀頭2符を明文化した。
+- α候補10問を追加し、開発用問題バンクを合計15問にした。追加分は全て`draft`で、独立監修前には本番へ出題されない。
+- 監修の基準、Rule owner / Rule reviewerの責務、根拠資料の優先順位を`docs/ruleset.md`へ記録した。
 
 ## 4. まだ実装されていないもの
 
@@ -90,7 +93,7 @@ npm run test:e2e -- --project=chromium
 | [#12 PROD-007](https://github.com/mizunoryuki/mahjong/issues/12) | 一部実装済み（表示契約・アクセシビリティ） | 固定commitの牌SVG差し替え、ライセンス通知、実機でのスクリーンリーダー最終確認                |
 | [#13 PROD-008](https://github.com/mizunoryuki/mahjong/issues/13) | 【完了・マージ済み (PR #23)】              | 1問目即時表示、4択、正誤、内訳、次問、5問結果、補助ページ復帰E2Eを完了                       |
 | [#14 PROD-009](https://github.com/mizunoryuki/mahjong/issues/14) | 【完了・マージ済み (PR #24)】              | 飜・符プローブUI、5結果診断決定表、4〜5問目の適応選定を実装・マージ完了                      |
-| [#15 PROD-010](https://github.com/mizunoryuki/mahjong/issues/15) | 未着手・二重監修待ち                       | α用15〜20問を作成し、作者以外が全問を独立再計算して承認する（PROD-001確定後）                |
+| [#15 PROD-010](https://github.com/mizunoryuki/mahjong/issues/15) | draft 15問作成済み・二重監修待ち           | 完全な手牌分解とScoringBasisを追記し、作者以外が全問を独立再計算して承認する                 |
 | [#16 PROD-011](https://github.com/mizunoryuki/mahjong/issues/16) | 【完了・マージ済み (PR #24)】              | 決定表全行テスト、1,000 seedの決定性・不正confirmedゼロ件の不変条件検査を完了                |
 | [#17 PROD-012](https://github.com/mizunoryuki/mahjong/issues/17) | 未着手                                     | 対象者5〜8人でユーザーテストを実施し、設計書のゲートを評価する                               |
 | [#18 PROD-013](https://github.com/mizunoryuki/mahjong/issues/18) | α合格まで開始禁止                          | 二重監修済み問題を64問へ拡張する                                                             |

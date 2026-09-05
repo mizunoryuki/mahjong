@@ -53,3 +53,14 @@
 - M1完了前にRule ownerと、作者とは別のRule reviewerを決める。
 - M3a前にhan・fu・payoutの類題ペアを含む15〜20問を二重監修する。
 - 本番CD前にGitHub Environment `production`へCloudflareのaccount IDと最小権限API tokenを登録する。
+
+## PROD-010 Mリーグルール固定とα問題追加
+
+- [x] ルールセットを`mleague-2026-v1`として版管理する。
+- [x] 3翻60符・4翻30符の切り上げ満貫を計算機とgolden testへ反映する。
+- [x] 連風牌の雀頭を2符とする契約を明文化する。
+- [x] 開発用問題バンクを監修前draft 15問まで増やす。
+- [ ] Rule ownerを任命し、採用範囲と対象外を承認する。
+- [ ] 問題作者とは別のRule reviewerが10問を独立再計算する。
+- [ ] 各draftへ完全な手牌分解とScoringBasisを記録する。
+- [ ] 15問すべてを二重監修し、公開条件を満たしたものだけ`published`にする。
