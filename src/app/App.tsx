@@ -1,12 +1,50 @@
 import { Link, Route, Routes } from "react-router-dom";
 
+import {
+  questionBankFingerprint,
+  resolveRuntimeQuestionBank,
+  type RuntimeQuestionBank,
+} from "../content/runtimeQuestionBank";
 import { AboutPage } from "../pages/AboutPage";
 import { PrivacyPage } from "../pages/PrivacyPage";
 import { QuizPage } from "../pages/QuizPage";
 import { RulesPage } from "../pages/RulesPage";
 import { SettingsPage } from "../pages/SettingsPage";
 
-function AppShell() {
+function QuizRoute({ questionBank }: { questionBank: RuntimeQuestionBank }) {
+  if (!questionBank.available) {
+    const invalid = questionBank.reason === "invalid";
+    return (
+      <section
+        className="content-page"
+        aria-labelledby="quiz-unavailable-title"
+      >
+        <h1 id="quiz-unavailable-title">
+          {invalid ? "問題を読み込めませんでした" : "問題を準備しています"}
+        </h1>
+        <p>
+          {invalid
+            ? "問題データを安全に確認できなかったため、出題を停止しています。"
+            : "監修済みの問題がそろうまで、点数計算の腕試しは公開していません。"}
+        </p>
+        <p>
+          {invalid
+            ? "ページを再読み込みしてください。解消しない場合は、時間を置いてお試しください。"
+            : "しばらくしてから、もう一度お試しください。"}
+        </p>
+      </section>
+    );
+  }
+
+  return (
+    <QuizPage
+      questions={questionBank.value.playableQuestions}
+      bankFingerprint={questionBankFingerprint(questionBank.value.bank)}
+    />
+  );
+}
+
+function AppShell({ questionBank }: { questionBank: RuntimeQuestionBank }) {
   return (
     <div className="app-shell">
       <header className="site-header">
@@ -18,7 +56,7 @@ function AppShell() {
 
       <main id="main-content">
         <Routes>
-          <Route path="/" element={<QuizPage />} />
+          <Route path="/" element={<QuizRoute questionBank={questionBank} />} />
           <Route path="/rules" element={<RulesPage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/settings" element={<SettingsPage />} />
@@ -38,6 +76,10 @@ function AppShell() {
   );
 }
 
-export function App() {
-  return <AppShell />;
+export function App({
+  questionBank = resolveRuntimeQuestionBank(),
+}: {
+  questionBank?: RuntimeQuestionBank;
+}) {
+  return <AppShell questionBank={questionBank} />;
 }

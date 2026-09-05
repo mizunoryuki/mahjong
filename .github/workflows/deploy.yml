@@ -24,9 +24,12 @@ jobs:
           node-version-file: .node-version
           cache: npm
       - run: npm ci
+      - name: Validate production question bank
+        run: npm run validate:questions -- --profile=production
       - run: npm run check
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e -- --project=chromium
+      - run: npm run test:e2e:production
       - name: Deploy with Wrangler
         uses: cloudflare/wrangler-action@v3
         with:

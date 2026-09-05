@@ -3,12 +3,31 @@ import { describe, expect, it } from "vitest";
 import { sampleQuestions } from "../content/sampleQuestions";
 import type { DiagnosticObservation } from "./adaptiveDiagnosis";
 import {
+  matchesQuestionAnswerKey,
   selectCalibrationQuestions,
   selectFifthQuestion,
   selectFourthQuestion,
 } from "./adaptiveSelection";
 
 describe("adaptiveSelection", () => {
+  it("rejects a restored answer key that no longer matches the question", () => {
+    const [answerKey] = selectCalibrationQuestions(sampleQuestions, 42);
+
+    expect(matchesQuestionAnswerKey(sampleQuestions[0], answerKey)).toBe(true);
+    expect(
+      matchesQuestionAnswerKey(sampleQuestions[0], {
+        ...answerKey,
+        correctOptionId: "tampered",
+      }),
+    ).toBe(false);
+    expect(
+      matchesQuestionAnswerKey(sampleQuestions[0], {
+        ...answerKey,
+        revision: answerKey.revision + 1,
+      }),
+    ).toBe(false);
+  });
+
   it("selects three calibration questions with distinct axes", () => {
     const questions = selectCalibrationQuestions(sampleQuestions, 42);
     expect(questions).toHaveLength(3);

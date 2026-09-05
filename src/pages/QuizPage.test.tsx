@@ -3,13 +3,22 @@ import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it } from "vitest";
 
 import { sampleQuestion } from "../content/sampleQuestion";
+import { sampleQuestions } from "../content/sampleQuestions";
 import type { Question } from "../content/schema";
 import { contextLabels } from "../domain/questionPresentation";
 import { HandCard, QuizPage } from "./QuizPage";
 
+const testBankFingerprint = "test-bank|jp-riichi-4p-v1|1|fixtures";
+
 describe("QuizPage", () => {
   it("shows the first question immediately", () => {
-    render(<QuizPage />, { wrapper: MemoryRouter });
+    render(
+      <QuizPage
+        questions={sampleQuestions}
+        bankFingerprint={testBankFingerprint}
+      />,
+      { wrapper: MemoryRouter },
+    );
 
     expect(
       screen.getByRole("heading", { name: "この手、何点？" }),
@@ -18,7 +27,13 @@ describe("QuizPage", () => {
   });
 
   it("shows concise feedback after the correct answer", () => {
-    render(<QuizPage />, { wrapper: MemoryRouter });
+    render(
+      <QuizPage
+        questions={sampleQuestions}
+        bankFingerprint={testBankFingerprint}
+      />,
+      { wrapper: MemoryRouter },
+    );
 
     fireEvent.click(screen.getByRole("button", { name: /1,300点/ }));
 
@@ -29,7 +44,13 @@ describe("QuizPage", () => {
   });
 
   it("routes a wrong answer to the neutral probe introduction", () => {
-    render(<QuizPage />, { wrapper: MemoryRouter });
+    render(
+      <QuizPage
+        questions={sampleQuestions}
+        bankFingerprint={testBankFingerprint}
+      />,
+      { wrapper: MemoryRouter },
+    );
 
     fireEvent.click(screen.getByRole("button", { name: /2,000点/ }));
 
@@ -47,7 +68,14 @@ describe("QuizPage", () => {
         fineTargets: [],
       },
     } as Question;
-    render(<QuizPage question={question} />, { wrapper: MemoryRouter });
+    render(
+      <QuizPage
+        question={question}
+        questions={sampleQuestions}
+        bankFingerprint={testBankFingerprint}
+      />,
+      { wrapper: MemoryRouter },
+    );
 
     fireEvent.click(screen.getByRole("button", { name: /2,000点/ }));
 
@@ -83,7 +111,13 @@ describe("QuizPage", () => {
   });
 
   it("advances to the next question when clicking next button", () => {
-    render(<QuizPage />, { wrapper: MemoryRouter });
+    render(
+      <QuizPage
+        questions={sampleQuestions}
+        bankFingerprint={testBankFingerprint}
+      />,
+      { wrapper: MemoryRouter },
+    );
 
     expect(screen.getByText(/現在 1問目 \/ 全5問/)).toBeInTheDocument();
 
@@ -104,7 +138,13 @@ describe("QuizPage", () => {
   });
 
   it("completes all 5 questions and displays summary result screen", () => {
-    render(<QuizPage />, { wrapper: MemoryRouter });
+    render(
+      <QuizPage
+        questions={sampleQuestions}
+        bankFingerprint={testBankFingerprint}
+      />,
+      { wrapper: MemoryRouter },
+    );
 
     // 1問目: 1,300点 (正解)
     fireEvent.click(screen.getByRole("button", { name: /1,300点/ }));
@@ -138,7 +178,13 @@ describe("QuizPage", () => {
 });
 
 it("handles probe answers and displays diagnosis summary on completion", () => {
-  render(<QuizPage />, { wrapper: MemoryRouter });
+  render(
+    <QuizPage
+      questions={sampleQuestions}
+      bankFingerprint={testBankFingerprint}
+    />,
+    { wrapper: MemoryRouter },
+  );
 
   // 1問目: 誤答 (2,000点)
   fireEvent.click(screen.getByRole("button", { name: /2,000点/ }));
@@ -185,7 +231,13 @@ it("handles probe answers and displays diagnosis summary on completion", () => {
 });
 
 it("supports skipping the probe", () => {
-  render(<QuizPage />, { wrapper: MemoryRouter });
+  render(
+    <QuizPage
+      questions={sampleQuestions}
+      bankFingerprint={testBankFingerprint}
+    />,
+    { wrapper: MemoryRouter },
+  );
 
   // 1問目: 誤答 (2,000点)
   fireEvent.click(screen.getByRole("button", { name: /2,000点/ }));

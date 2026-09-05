@@ -1,12 +1,8 @@
-import { useEffect, useId, useReducer, useRef, useState } from "react";
+import { useEffect, useReducer, useRef } from "react";
 
-import { sampleQuestion } from "../content/sampleQuestion";
-import { sampleQuestions } from "../content/sampleQuestions";
 import type { Question } from "../content/schema";
 import {
-  evaluateProbe,
   formatDiagnosisMessage,
-  type DiagnosticObservation,
   type ProbeResponse,
 } from "../domain/adaptiveDiagnosis";
 import {
@@ -23,6 +19,7 @@ import {
 } from "../domain/questionPresentation";
 import {
   createQuizSession,
+  isQuizStateConsistent,
   quizReducer,
   type QuizAction,
   type QuizState,
@@ -79,23 +76,51 @@ export function HandCard({ question }: { question: Question }) {
   );
 }
 
-function initSession(providedQuestion?: Question): QuizState {
+type QuizPageInput = {
+  providedQuestion?: Question;
+  questions: readonly Question[];
+  bankFingerprint: string;
+};
+
+function initSession({
+  providedQuestion,
+  questions,
+  bankFingerprint,
+}: QuizPageInput): QuizState {
   if (providedQuestion) {
+    const companionQuestions = questions.filter(
+      (candidate) => candidate.id !== providedQuestion.id,
+    );
+    if (companionQuestions.length < 2) {
+      throw new Error("a preview question requires two companion questions");
+    }
     return createQuizSession({
       sessionId: "single-question-session",
       seed: 1,
       questions: [
         toQuestionAnswerKey(providedQuestion),
-        toQuestionAnswerKey(sampleQuestions[1] ?? providedQuestion),
-        toQuestionAnswerKey(sampleQuestions[2] ?? providedQuestion),
+        toQuestionAnswerKey(companionQuestions[0]),
+        toQuestionAnswerKey(companionQuestions[1]),
       ],
     });
   }
 
-  const restored = loadQuizSession();
-  if (restored) return restored;
+  const restored = loadQuizSession(bankFingerprint);
+  const canonicalKeys = questions.map((candidate) =>
+    toQuestionAnswerKey(candidate),
+  );
+  const expectedCalibration = restored
+    ? selectCalibrationQuestions(questions, restored.session.seed)
+    : [];
+  if (
+    restored &&
+    isQuizStateConsistent(restored, canonicalKeys, expectedCalibration)
+  ) {
+    return restored;
+  }
+  if (restored) clearQuizSession();
 
-  const initialKeys = selectCalibrationQuestions(sampleQuestions, 42);
+  const initialKeys = selectCalibrationQuestions(questions, 42);
   return createQuizSession({
     sessionId: "quiz-session-1",
     seed: 42,
@@ -103,37 +128,41 @@ function initSession(providedQuestion?: Question): QuizState {
   });
 }
 
-export function QuizPage({ question }: { question?: Question }) {
-  const baseId = useId();
-  const transitionCounter = useRef(0);
+export function QuizPage({
+  question,
+  questions,
+  bankFingerprint,
+}: {
+  question?: Question;
+  questions: readonly Question[];
+  bankFingerprint: string;
+}) {
   const [sessionState, dispatch] = useReducer(
     (state: QuizState, action: QuizAction) => {
       const next = quizReducer(state, action);
       if (!question) {
-        saveQuizSession(next);
+        saveQuizSession(next, bankFingerprint);
       }
       return next;
     },
-    question,
+    { providedQuestion: question, questions, bankFingerprint },
     initSession,
   );
 
-  const [selectedOptionId, setSelectedOptionId] = useState<string>();
-  const [selectedHan, setSelectedHan] = useState<number | "unknown">();
-  const [selectedFu, setSelectedFu] = useState<number | "unknown">();
   const headingRef = useRef<HTMLHeadingElement>(null);
 
   function nextTransitionId(): string {
-    transitionCounter.current += 1;
-    return `${baseId}-t-${transitionCounter.current}`;
+    return crypto.randomUUID();
   }
 
   const currentKey =
     sessionState.session.questions[sessionState.session.currentIndex];
   const currentQuestion =
-    question ??
-    sampleQuestions.find((q) => q.id === currentKey?.questionId) ??
-    sampleQuestion;
+    question ?? questions.find((q) => q.id === currentKey?.questionId);
+
+  if (!currentQuestion) {
+    throw new Error("current question is not present in the playable bank");
+  }
 
   useEffect(() => {
     headingRef.current?.focus();
@@ -141,22 +170,18 @@ export function QuizPage({ question }: { question?: Question }) {
 
   function handleSelectOption(optionId: string) {
     if (sessionState.phase !== "answering" || !currentKey) return;
-    setSelectedOptionId(optionId);
-    setSelectedHan(undefined);
-    setSelectedFu(undefined);
-
-    const requiresProbe = Boolean(currentQuestion.diagnosis.eligible);
     dispatch({
       type: "submitAnswer",
       transitionId: nextTransitionId(),
       questionId: currentKey.questionId,
       optionId,
-      requiresProbe,
     });
   }
 
   function handleSubmitProbe() {
     if (sessionState.phase !== "probe" || !currentKey) return;
+    const selectedHan = sessionState.responseDraft.han;
+    const selectedFu = sessionState.responseDraft.fu;
     if (selectedHan === undefined || selectedFu === undefined) return;
 
     const probeAns: ProbeResponse = {
@@ -164,54 +189,26 @@ export function QuizPage({ question }: { question?: Question }) {
       han: selectedHan,
       fu: selectedFu,
     };
-    const evaluated = evaluateProbe(currentQuestion, false, probeAns);
-    const observation: DiagnosticObservation = {
-      slot: sessionState.session.currentIndex + 1,
-      problemId: currentKey.questionId,
-      role:
-        currentKey.role ??
-        (sessionState.session.currentIndex < 3 ? "calibration" : "general"),
-      followupFor: currentKey.followupFor,
-      finalAnswerCorrect: false,
-      diagnosticUseful: evaluated.diagnosticUseful,
-      coarseDiagnosis: evaluated.coarseDiagnosis,
-    };
-
     dispatch({
       type: "submitProbe",
       transitionId: nextTransitionId(),
       questionId: currentKey.questionId,
-      observation,
+      response: probeAns,
     });
   }
 
   function handleSkipProbe() {
     if (sessionState.phase !== "probe" || !currentKey) return;
 
-    const observation: DiagnosticObservation = {
-      slot: sessionState.session.currentIndex + 1,
-      problemId: currentKey.questionId,
-      role:
-        currentKey.role ??
-        (sessionState.session.currentIndex < 3 ? "calibration" : "general"),
-      followupFor: currentKey.followupFor,
-      finalAnswerCorrect: false,
-      diagnosticUseful: false,
-    };
-
     dispatch({
       type: "submitProbe",
       transitionId: nextTransitionId(),
       questionId: currentKey.questionId,
-      observation,
+      response: { skipped: true },
     });
   }
 
   function handleContinue() {
-    setSelectedOptionId(undefined);
-    setSelectedHan(undefined);
-    setSelectedFu(undefined);
-
     const currentIndex = sessionState.session.currentIndex;
     const questionsLength = sessionState.session.questions.length;
     const isBatchEnd = currentIndex + 1 === questionsLength;
@@ -228,12 +225,12 @@ export function QuizPage({ question }: { question?: Question }) {
       const nextKey =
         questionsLength === 3
           ? selectFourthQuestion(
-              sampleQuestions,
+              questions,
               sessionState.session.observations,
               usedIds,
             )
           : selectFifthQuestion(
-              sampleQuestions,
+              questions,
               sessionState.session.observations,
               usedIds,
             );
@@ -248,9 +245,6 @@ export function QuizPage({ question }: { question?: Question }) {
 
   function handleRestart() {
     clearQuizSession();
-    setSelectedOptionId(undefined);
-    setSelectedHan(undefined);
-    setSelectedFu(undefined);
     window.location.reload();
   }
 
@@ -387,9 +381,7 @@ export function QuizPage({ question }: { question?: Question }) {
               {
                 formatPayment(
                   currentQuestion.options.find(
-                    (option) =>
-                      option.id ===
-                      (selectedOptionId ?? currentAnswer?.optionId),
+                    (option) => option.id === currentAnswer?.optionId,
                   )!.payment,
                 ).primary
               }
@@ -413,18 +405,32 @@ export function QuizPage({ question }: { question?: Question }) {
                     <button
                       key={h}
                       type="button"
-                      className={`probe-button ${selectedHan === h ? "probe-button--selected" : ""}`}
-                      aria-pressed={selectedHan === h}
-                      onClick={() => setSelectedHan(h)}
+                      className={`probe-button ${sessionState.responseDraft.han === h ? "probe-button--selected" : ""}`}
+                      aria-pressed={sessionState.responseDraft.han === h}
+                      onClick={() =>
+                        dispatch({
+                          type: "updateProbe",
+                          transitionId: nextTransitionId(),
+                          questionId: currentKey.questionId,
+                          responseDraft: { han: h },
+                        })
+                      }
                     >
                       {h}飜
                     </button>
                   ))}
                   <button
                     type="button"
-                    className={`probe-button ${selectedHan === "unknown" ? "probe-button--selected" : ""}`}
-                    aria-pressed={selectedHan === "unknown"}
-                    onClick={() => setSelectedHan("unknown")}
+                    className={`probe-button ${sessionState.responseDraft.han === "unknown" ? "probe-button--selected" : ""}`}
+                    aria-pressed={sessionState.responseDraft.han === "unknown"}
+                    onClick={() =>
+                      dispatch({
+                        type: "updateProbe",
+                        transitionId: nextTransitionId(),
+                        questionId: currentKey.questionId,
+                        responseDraft: { han: "unknown" },
+                      })
+                    }
                   >
                     分からない
                   </button>
@@ -444,18 +450,32 @@ export function QuizPage({ question }: { question?: Question }) {
                     <button
                       key={f}
                       type="button"
-                      className={`probe-button ${selectedFu === f ? "probe-button--selected" : ""}`}
-                      aria-pressed={selectedFu === f}
-                      onClick={() => setSelectedFu(f)}
+                      className={`probe-button ${sessionState.responseDraft.fu === f ? "probe-button--selected" : ""}`}
+                      aria-pressed={sessionState.responseDraft.fu === f}
+                      onClick={() =>
+                        dispatch({
+                          type: "updateProbe",
+                          transitionId: nextTransitionId(),
+                          questionId: currentKey.questionId,
+                          responseDraft: { fu: f },
+                        })
+                      }
                     >
                       {f}符
                     </button>
                   ))}
                   <button
                     type="button"
-                    className={`probe-button ${selectedFu === "unknown" ? "probe-button--selected" : ""}`}
-                    aria-pressed={selectedFu === "unknown"}
-                    onClick={() => setSelectedFu("unknown")}
+                    className={`probe-button ${sessionState.responseDraft.fu === "unknown" ? "probe-button--selected" : ""}`}
+                    aria-pressed={sessionState.responseDraft.fu === "unknown"}
+                    onClick={() =>
+                      dispatch({
+                        type: "updateProbe",
+                        transitionId: nextTransitionId(),
+                        questionId: currentKey.questionId,
+                        responseDraft: { fu: "unknown" },
+                      })
+                    }
                   >
                     分からない
                   </button>
@@ -468,7 +488,10 @@ export function QuizPage({ question }: { question?: Question }) {
             <button
               className="primary-button"
               type="button"
-              disabled={selectedHan === undefined || selectedFu === undefined}
+              disabled={
+                sessionState.responseDraft.han === undefined ||
+                sessionState.responseDraft.fu === undefined
+              }
               onClick={handleSubmitProbe}
             >
               回答して正解と内訳を確認する
@@ -497,9 +520,7 @@ export function QuizPage({ question }: { question?: Question }) {
               {
                 formatPayment(
                   currentQuestion.options.find(
-                    (option) =>
-                      option.id ===
-                      (selectedOptionId ?? currentAnswer?.optionId),
+                    (option) => option.id === currentAnswer?.optionId,
                   )!.payment,
                 ).primary
               }
